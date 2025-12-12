@@ -1,12 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+// تهيئة العميل عند الطلب فقط لضمان أن process.env تم إعداده في index.tsx
+const getAi = () => {
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }
+  return aiInstance;
+};
 
 // Analyze image to extract style, colors, layout, objects and generate a prompt
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   // Remove data URL prefix if present for the API call
   const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+
+  const ai = getAi(); // Get the initialized instance
 
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -68,6 +78,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 // Refine or merge description based on user instruction
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   try {
+    const ai = getAi(); // Get the initialized instance
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `لديك وصف لصورة: "${originalDescription}".
@@ -87,6 +98,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
 
 // Chat with Gemini 3 Pro
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
+  const ai = getAi(); // Get the initialized instance
   const chat = ai.chats.create({
     model: "gemini-3-pro-preview",
     history: history,

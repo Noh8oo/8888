@@ -6,7 +6,7 @@ import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
 import { AppState, ImageAnalysis } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini } from './services/geminiService';
-import { X, Share2 } from 'lucide-react';
+import { X, Share2, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState(false);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -26,6 +27,15 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Check for API Key on mount
+  useEffect(() => {
+    const key = process.env.API_KEY;
+    if (!key) {
+      console.warn("API Key is missing!");
+      setApiKeyError(true);
+    }
+  }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
@@ -43,7 +53,7 @@ const App: React.FC = () => {
       setCurrentDescription(analysis.prompt);
     } catch (error) {
       console.error("Analysis failed", error);
-      alert("حدث خطأ أثناء تحليل الصورة. الرجاء المحاولة مجدداً.");
+      alert("حدث خطأ أثناء تحليل الصورة. الرجاء التأكد من صحة مفتاح API والمحاولة مجدداً.");
       setState(prev => ({ ...prev, currentStep: 'upload', image: null }));
     } finally {
       setLoading(false);
@@ -91,6 +101,32 @@ const App: React.FC = () => {
       console.error('Error sharing:', err);
     }
   };
+
+  if (apiKeyError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md text-center border border-red-100 dark:border-red-900/30">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-dark dark:text-white mb-2">مفتاح API مفقود</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
+            لم يتم العثور على مفتاح Gemini API. يرجى التأكد من إضافة المتغير 
+            <code className="mx-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono">VITE_API_KEY</code> 
+            في إعدادات Vercel.
+          </p>
+          <a 
+            href="https://aistudio.google.com/app/apikey" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium"
+          >
+            احصل على مفتاح API
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 font-sans selection:bg-primary/20 selection:text-primary transition-colors duration-300">
