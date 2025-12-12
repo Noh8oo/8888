@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لومينا - تحليل الصور بالذكاء الاصطناعي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#1E88E5',
+              secondary: '#F5F5F5',
+              dark: '#212121',
+              success: '#4CAF50',
+            },
+            fontFamily: {
+              sans: ['Tajawal', 'sans-serif'],
+              display: ['Cairo', 'sans-serif'],
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              'slide-in': 'slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards',
+              'scale-up': 'scaleUp 0.3s ease-out',
+              'shiver': 'shiver 0.3s linear infinite',
+              'shoot': 'shoot 0.5s ease-out forwards',
+              'blink': 'blink 1.5s infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideIn: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              scaleUp: {
+                '0%': { transform: 'scale(0.95)' },
+                '100%': { transform: 'scale(1)' },
+              },
+              shiver: {
+                '0%': { transform: 'translate(0, 0) rotate(0deg)' },
+                '25%': { transform: 'translate(1px, 1px) rotate(2deg)' },
+                '50%': { transform: 'translate(-1px, -1px) rotate(-2deg)' },
+                '75%': { transform: 'translate(1px, -1px) rotate(1deg)' },
+                '100%': { transform: 'translate(0, 0) rotate(0deg)' },
+              },
+              shoot: {
+                '0%': { transform: 'translate(0, 0) scale(0)', opacity: '1' },
+                '100%': { transform: 'translate(var(--tw-translate-x), var(--tw-translate-y)) scale(0)', opacity: '0' },
+              },
+              blink: {
+                '0%, 100%': { transform: 'scaleY(1)' },
+                '50%': { transform: 'scaleY(0.1)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FFFFFF;
+        color: #212121;
+        font-family: 'Tajawal', sans-serif;
+      }
+      .dark body {
+        background-color: #111827;
+        color: #F9FAFB;
+      }
+      /* Custom scrollbar for a cleaner look */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      .dark ::-webkit-scrollbar-track {
+        background: #1f2937;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #ccc; 
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #4b5563; 
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #999; 
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280; 
+      }
+      .bg-subtle-pattern {
+        background-color: #fafafa;
+        background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+        background-size: 24px 24px;
+      }
+      .dark .bg-subtle-pattern {
+        background-color: #111827;
+        background-image: radial-gradient(#374151 1.5px, transparent 1.5px);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

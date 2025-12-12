@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Lumina - AI Image Analyst",
+  "description": "A clean, professional image analysis and editing tool powered by Gemini models. Upload images to analyze styles, extract colors, generate prompts, and perform AI-based edits.",
+  "requestFramePermissions": []
+}
