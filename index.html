@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
@@ -31,6 +32,8 @@
               'shiver': 'shiver 0.3s linear infinite',
               'shoot': 'shoot 0.5s ease-out forwards',
               'blink': 'blink 1.5s infinite',
+              'glow-pulse': 'glowPulse 2s infinite',
+              'shine': 'shine 3s infinite',
             },
             keyframes: {
               fadeIn: {
@@ -59,6 +62,15 @@
               blink: {
                 '0%, 100%': { transform: 'scaleY(1)' },
                 '50%': { transform: 'scaleY(0.1)' },
+              },
+              glowPulse: {
+                '0%, 100%': { boxShadow: '0 0 5px rgba(244, 63, 94, 0.4), 0 0 10px rgba(244, 63, 94, 0.2)' },
+                '50%': { boxShadow: '0 0 20px rgba(244, 63, 94, 0.8), 0 0 30px rgba(244, 63, 94, 0.4)' },
+              },
+              shine: {
+                '0%': { left: '-100%' },
+                '20%': { left: '100%' },
+                '100%': { left: '100%' },
               }
             }
           }
@@ -75,7 +87,6 @@
         background-color: #111827;
         color: #F9FAFB;
       }
-      /* Custom scrollbar for a cleaner look */
       ::-webkit-scrollbar {
         width: 8px;
       }

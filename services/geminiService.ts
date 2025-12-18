@@ -96,11 +96,13 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
   }
 };
 
-// Chat with Gemini 3 Pro
+// Chat with Gemini
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
   const ai = getAi(); // Get the initialized instance
+  
+  // Use gemini-2.5-flash for faster chat interactions
   const chat = ai.chats.create({
-    model: "gemini-3-pro-preview",
+    model: "gemini-2.5-flash",
     history: history,
     config: {
       systemInstruction: "أنت مساعد ذكي متخصص في التصميم وتحليل الصور. أجب دائماً باللغة العربية وبأسلوب مهني وودود."

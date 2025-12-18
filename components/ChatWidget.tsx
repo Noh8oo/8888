@@ -41,10 +41,13 @@ export const ChatWidget: React.FC = () => {
 
     try {
       // Convert to format expected by Gemini service
-      const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
+      // IMPORTANT: Filter out the 'welcome' message because API history cannot start with 'model' role
+      const history = messages
+        .filter(m => m.id !== 'welcome')
+        .map(m => ({
+          role: m.role,
+          parts: [{ text: m.text }]
+        }));
 
       const responseText = await chatWithGemini(history, userMsg.text);
 
@@ -56,7 +59,7 @@ export const ChatWidget: React.FC = () => {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
-      console.error(error);
+      console.error("Chat error:", error);
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',

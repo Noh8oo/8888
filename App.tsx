@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -80,7 +81,6 @@ const App: React.FC = () => {
   };
 
   const handleShare = async () => {
-    // Simulate generating a unique share link
     const shareId = Math.random().toString(36).substring(2, 9);
     const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
     
@@ -130,7 +130,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 font-sans selection:bg-primary/20 selection:text-primary transition-colors duration-300">
-      <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+      <Header 
+        isDarkMode={isDarkMode} 
+        toggleDarkMode={toggleDarkMode} 
+        highlightSupport={state.currentStep === 'results'} 
+      />
       
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-80px)]">
         
@@ -168,14 +172,12 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-              {/* Left Column: Image Viewer */}
               <div className="w-full">
                 <ImageViewer 
                   imageSrc={state.image} 
                 />
               </div>
 
-              {/* Right Column: Analysis Panel */}
               <div className="w-full">
                 <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors duration-300">
                   <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2 text-dark dark:text-white">
@@ -196,7 +198,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Floating Chat Widget */}
       <ChatWidget />
     </div>
   );
