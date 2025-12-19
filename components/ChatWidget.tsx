@@ -1,10 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
-import { chatWithGemini } from '../services/geminiService';
-import { ChatMessage } from '../types';
 
-export const ChatWidget: React.FC = () => {
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, X, Send, Sparkles, Bell } from 'lucide-react';
+import { chatWithGemini } from '../services/geminiService';
+import { ChatMessage, ImageAnalysis } from '../types';
+
+interface ChatWidgetProps {
+  imageAnalysis: ImageAnalysis | null;
+}
+
+export const ChatWidget: React.FC<ChatWidgetProps> = ({ imageAnalysis }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasNewInsight, setHasNewInsight] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -16,6 +22,7 @@ export const ChatWidget: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAnalyzedImageRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,6 +31,44 @@ export const ChatWidget: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen]);
+
+  // Reactive Logic: Respond to new image analysis
+  useEffect(() => {
+    if (imageAnalysis && imageAnalysis.prompt !== lastAnalyzedImageRef.current) {
+      lastAnalyzedImageRef.current = imageAnalysis.prompt;
+      triggerAutoInsight(imageAnalysis);
+    }
+  }, [imageAnalysis]);
+
+  const triggerAutoInsight = async (analysis: ImageAnalysis) => {
+    // Show visual notification pulse
+    setHasNewInsight(true);
+    
+    // Prepare a proactive prompt for the AI
+    const proactivePrompt = `لقد قمت للتو بتحليل صورة للمستخدم. 
+    تفاصيل الصورة: النمط: ${analysis.style}، العناصر: ${analysis.objects.join(', ')}، الوصف: ${analysis.prompt}.
+    بصفتك خبير تصميم، رحب بالمستخدم بشكل مختصر جداً وأظهر أنك "رأيت" الصورة، ثم قدم فكرتين إبداعيتين لما يمكن فعله بهذا التصميم (مثلاً اقتراح لدمج عناصر، أو فكرة لمشروع فني مرتبط).
+    اجعل الرد ملهمًا وقصيرًا وباللغة العربية.`;
+
+    setIsTyping(true);
+    try {
+      // We send this as a "system" request but it appears as a model turn
+      const responseText = await chatWithGemini([], proactivePrompt);
+
+      const insightMsg: ChatMessage = {
+        id: `insight-${Date.now()}`,
+        role: 'model',
+        text: responseText,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, insightMsg]);
+    } catch (error) {
+      console.error("Auto-insight failed:", error);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
@@ -38,10 +83,9 @@ export const ChatWidget: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setHasNewInsight(false); // Reset notification on interaction
 
     try {
-      // Convert to format expected by Gemini service
-      // IMPORTANT: Filter out the 'welcome' message because API history cannot start with 'model' role
       const history = messages
         .filter(m => m.id !== 'welcome')
         .map(m => ({
@@ -70,6 +114,11 @@ export const ChatWidget: React.FC = () => {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const toggleChat = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) setHasNewInsight(false); // Clear notification when opened
   };
 
   return (
@@ -136,12 +185,22 @@ export const ChatWidget: React.FC = () => {
       )}
 
       {/* Toggle Button */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="h-14 w-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-      </button>
+      <div className="relative">
+        {hasNewInsight && !isOpen && (
+          <>
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 z-10 animate-bounce flex items-center justify-center">
+              <Bell className="w-3 h-3 text-white fill-current" />
+            </div>
+            <div className="absolute inset-0 rounded-full animate-chat-pulse z-0"></div>
+          </>
+        )}
+        <button 
+          onClick={toggleChat}
+          className={`relative z-10 h-14 w-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center ${hasNewInsight && !isOpen ? 'animate-bounce' : ''}`}
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className={`w-6 h-6 ${hasNewInsight ? 'animate-pulse' : ''}`} />}
+        </button>
+      </div>
     </div>
   );
 };

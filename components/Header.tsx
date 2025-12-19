@@ -16,11 +16,16 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, high
   useEffect(() => {
     if (highlightSupport) {
       setIsLitUp(true);
-      // Keep the glowing effect for 6 seconds then fade back to normal
-      const timer = setTimeout(() => setIsLitUp(false), 6000);
+      // Increased duration to 15 seconds as requested
+      const timer = setTimeout(() => setIsLitUp(false), 15000);
       return () => clearTimeout(timer);
     }
   }, [highlightSupport]);
+
+  const handleSupportClick = () => {
+    // If user interacts with the button, we can stop the aggressive glow
+    setIsLitUp(false);
+  };
 
   return (
     <header className="w-full h-20 flex items-center justify-between px-4 sm:px-6 md:px-12 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-white/90 dark:bg-gray-900/90 transition-colors duration-300">
@@ -29,9 +34,10 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, high
         href="https://ko-fi.com/noh8o"
         target="_blank"
         rel="noopener noreferrer"
+        onClick={handleSupportClick}
         className={`relative overflow-hidden flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 group shadow-sm hover:shadow-md 
           ${isLitUp 
-            ? 'bg-rose-500 text-white border-rose-400 animate-glow-pulse scale-105' 
+            ? 'bg-rose-500 text-white border-rose-400 animate-glow-pulse scale-105 ring-4 ring-rose-500/20' 
             : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800/50'
           }`}
         title="ادعم تطوير الموقع"

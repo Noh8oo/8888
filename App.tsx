@@ -198,7 +198,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <ChatWidget />
+      <ChatWidget imageAnalysis={state.analysis} />
     </div>
   );
 };
