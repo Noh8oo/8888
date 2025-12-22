@@ -13,15 +13,9 @@ const cleanBase64Data = (base64: string): string => {
 
 const validateApiKey = () => {
   const apiKey = process.env.API_KEY;
-  
   if (!apiKey || apiKey.trim() === '' || apiKey === 'undefined') {
-    throw new Error("API_KEY_MISSING");
+    throw new Error("المفتاح غير موجود في الإعدادات.");
   }
-
-  if (apiKey.startsWith('gsk_')) {
-    throw new Error("API_KEY_GROQ_MISMATCH");
-  }
-
   return apiKey;
 };
 
@@ -34,7 +28,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // النموذج الأنسب والأسرع للخطة المجانية
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
@@ -60,12 +54,12 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
     });
 
-    if (!response.text) throw new Error("EMPTY_RESPONSE");
+    if (!response.text) throw new Error("لم يتم استلام رد.");
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
-    if (e.message.includes("429")) throw new Error("الخطة المجانية وصلت للحد الأقصى حالياً، انتظر دقيقة وأعد المحاولة.");
-    if (["API_KEY_MISSING", "API_KEY_GROQ_MISMATCH"].includes(e.message)) throw e;
-    throw new Error("حدث خطأ في معالجة الصورة. يرجى تجربة صورة أصغر أو التحقق من جودة الاتصال.");
+    console.error(e);
+    if (e.message.includes("429")) throw new Error("تم الوصول لحد الاستهلاك المجاني. انتظر قليلاً وأعد المحاولة.");
+    throw new Error("فشل التحليل. يرجى تجربة صورة أخرى أو التحقق من المفتاح.");
   }
 };
 
@@ -77,11 +71,11 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image', // نموذج تعديل الصور السريع
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'Enhance this photo: improve lighting and sharpness.' }
+          { text: 'Improve lighting and sharpness of this image.' }
         ],
       },
     });
@@ -92,10 +86,9 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    throw new Error("FAILED_ENHANCEMENT");
+    throw new Error("فشل التحسين.");
   } catch (e: any) {
-    if (e.message.includes("429")) throw new Error("الخطة المجانية مشغولة حالياً، يرجى المحاولة بعد قليل.");
-    throw new Error("لم نتمكن من تحسين الصورة. قد يكون السبب حجم الملف أو قيود الخطة المجانية.");
+    throw new Error("حدث خطأ أثناء معالجة الصورة. الخطة المجانية قد تكون مشغولة.");
   }
 };
 
@@ -115,7 +108,7 @@ export const chatWithGemini = async (history: { role: string; parts: { text: str
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     history: history,
-    config: { systemInstruction: "أنت مساعد ذكي خبير تصميم. أجب بالعربية باختصار وود." }
+    config: { systemInstruction: "أنت مساعد ذكي في لومينا. أجب بالعربية دائماً." }
   });
   const response = await chat.sendMessage({ message: newMessage });
   return response.text || "";

@@ -7,7 +7,7 @@ import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
 import { AppState, ToolMode } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, enhanceImageWithGemini } from './services/geminiService';
-import { Share2, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Key, Settings, ExternalLink } from 'lucide-react';
+import { Share2, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -93,52 +93,27 @@ const App: React.FC = () => {
         {state.currentStep !== 'upload' && (
           <div className="max-w-[1600px] mx-auto animate-fade-in">
             {state.error ? (
-              <div className="max-w-3xl mx-auto py-12 text-center space-y-8 bg-white dark:bg-gray-800 rounded-[3rem] p-8 md:p-12 border border-red-100 dark:border-red-900/30 shadow-2xl">
-                <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto">
+              <div className="max-w-xl mx-auto py-20 text-center space-y-8 bg-white dark:bg-gray-800 rounded-[3rem] p-10 border border-red-50 dark:border-red-900/10 shadow-2xl">
+                <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
                   <AlertCircle className="w-10 h-10 text-red-500" />
                 </div>
                 
                 <div className="space-y-4">
-                  <h3 className="text-3xl font-bold text-dark dark:text-white">تحتاج لربط المفتاح في Vercel</h3>
-                  <p className="text-gray-500 dark:text-gray-400">لقد اكتشفنا أن الموقع لا يملك صلاحية الوصول للمفتاح حالياً.</p>
+                  <h3 className="text-2xl font-bold">عذراً، حدث خطأ</h3>
+                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+                    {state.error}
+                  </p>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-8 text-right border border-blue-100 dark:border-blue-800/50 space-y-6">
-                  <div className="flex items-center gap-3 text-blue-700 dark:text-blue-300 border-b border-blue-100 dark:border-blue-800 pb-4">
-                    <Settings className="w-6 h-6" />
-                    <h4 className="font-bold text-lg">خطوات التفعيل السريع لـ Vercel:</h4>
-                  </div>
-                  
-                  <ol className="space-y-4 text-gray-700 dark:text-gray-300">
-                    <li className="flex gap-3">
-                      <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 mt-0.5">1</span>
-                      <p>ادخل لصفحة مشروعك في <b>Vercel</b> وافتح تبويب <b>Settings</b>.</p>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 mt-0.5">2</span>
-                      <p>اختر <b>Environment Variables</b> وأضف اسماً جديداً: <code className="bg-white dark:bg-gray-700 px-2 py-1 rounded text-red-500 font-bold">API_KEY</code>.</p>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 mt-0.5">3</span>
-                      <p>ضع المفتاح الذي يبدأ بـ <span className="text-green-600 font-bold">AIza...</span> في خانة القيمة واضغط <b>Save</b>.</p>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 mt-0.5">4</span>
-                      <p>اذهب لتبويب <b>Deployments</b> واضغط <b>Redeploy</b> لآخر نسخة ليعمل المفتاح.</p>
-                    </li>
-                  </ol>
-
-                  <div className="pt-4 flex flex-wrap gap-4">
-                    <a href="https://vercel.com/dashboard" target="_blank" className="bg-dark text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all">
-                      <ExternalLink className="w-4 h-4" /> اذهب لـ Vercel Dashboard
-                    </a>
-                    <a href="https://aistudio.google.com/" target="_blank" className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-primary/80 transition-all">
-                      <Key className="w-4 h-4" /> صفحة مفاتيح Google
-                    </a>
-                  </div>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleReset} 
+                    className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    العودة والمحاولة مرة أخرى
+                  </button>
+                  <p className="text-[10px] text-gray-400">تأكد من استخدام صور بحجم معقول للمفتاح المجاني.</p>
                 </div>
-
-                <button onClick={handleReset} className="px-10 py-4 bg-gray-100 dark:bg-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all">العودة للرئيسية</button>
               </div>
             ) : (
               <>
