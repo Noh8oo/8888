@@ -4,7 +4,7 @@ import { Search, Wand2, Loader2 } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
-  onImageSelect: (base64: string, mode: ToolMode) => void;
+  onImageSelect: (displayBase64: string, apiBase64: string, mode: ToolMode) => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
@@ -16,44 +16,48 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     }
   };
 
+  const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number): string => {
+    const canvas = document.createElement('canvas');
+    let width = img.width;
+    let height = img.height;
+
+    if (width > height) {
+      if (width > maxDim) {
+        height *= maxDim / width;
+        width = maxDim;
+      }
+    } else {
+      if (height > maxDim) {
+        width *= maxDim / height;
+        height = maxDim;
+      }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, width, height);
+    }
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        // تصغير الصورة لـ 256 بكسل فقط عند التحسين لضمان عملها على Vercel
-        // التحليل يبقى 512 بكسل لأنه لا يعيد صورة فلا مشكلة في الحجم
-        const MAX_DIM = mode === 'enhance' ? 256 : 512; 
+        // 1. نسخة العرض (جودة مقبولة للمستخدم)
+        const displayBase64 = resizeImage(img, 800, 0.7);
 
-        let width = img.width;
-        let height = img.height;
+        // 2. نسخة الـ API (مضغوطة جداً للسرعة وتجاوز قيود السيرفر)
+        // عند التحسين نستخدم 300 بكسل، وعند التحليل 512 بكسل
+        const apiMaxDim = mode === 'enhance' ? 300 : 512;
+        const apiQuality = mode === 'enhance' ? 0.4 : 0.6;
+        const apiBase64 = resizeImage(img, apiMaxDim, apiQuality);
 
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height *= MAX_DIM / width;
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width *= MAX_DIM / height;
-            height = MAX_DIM;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-        }
-        
-        // جودة منخفضة قليلاً لتقليل حجم الـ Payload لـ Vercel
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-        onImageSelect(compressedBase64, mode);
+        onImageSelect(displayBase64, apiBase64, mode);
         setIsProcessingLocal(false);
       };
       img.src = e.target?.result as string;
@@ -66,7 +70,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري معالجة الصورة...</p>
+          <p className="font-bold text-dark dark:text-white">جاري تحضير وضغط الصورة...</p>
         </div>
       )}
 

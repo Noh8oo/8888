@@ -33,17 +33,20 @@ const App: React.FC = () => {
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  const handleImageSelect = async (base64: string, mode: ToolMode) => {
-    setOriginalImage(base64);
+  const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
+    // عرض الصورة ذات الجودة الجيدة للمستخدم
+    setOriginalImage(displayBase64);
     setState(prev => ({ ...prev, error: null, toolMode: mode }));
     
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (mode === 'enhance') {
-      setState(prev => ({ ...prev, currentStep: 'enhancing', image: base64 }));
+      // عرض الصورة الجيدة أثناء التحميل
+      setState(prev => ({ ...prev, currentStep: 'enhancing', image: displayBase64 }));
       setLoading(true);
       try {
-        const enhancedBase64 = await enhanceImageWithGemini(base64);
+        // إرسال الصورة المضغوطة جداً للـ API
+        const enhancedBase64 = await enhanceImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', image: enhancedBase64 }));
       } catch (error: any) {
         setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
@@ -51,10 +54,11 @@ const App: React.FC = () => {
         setLoading(false);
       }
     } else {
-      setState(prev => ({ ...prev, currentStep: 'analyzing', image: base64 }));
+      setState(prev => ({ ...prev, currentStep: 'analyzing', image: displayBase64 }));
       setLoading(true);
       try {
-        const analysis = await analyzeImageWithGemini(base64);
+        // إرسال الصورة المضغوطة للتحليل
+        const analysis = await analyzeImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
