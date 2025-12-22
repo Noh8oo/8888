@@ -67,18 +67,17 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // استخدام فلاش 2.5 لأنه الأسرع لتجنب Timeout الخاص بـ Vercel
+    // تم إزالة imageConfig لأنها تسبب خطأ 400 عند إرسال صورة كمدخل
+    // تم تحسين الأمر ليكون أكثر وضوحاً للنموذج
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'enhance' } // أمر بسيط جداً لتقليل وقت المعالجة
+          { text: 'Improve image quality, lighting, and clarity. Return the improved image.' }
         ],
       },
-      config: {
-        imageConfig: { aspectRatio: "1:1" }
-      }
+      // لا نضع config للأبعاد هنا، نترك النموذج يحدد بناءً على الصورة الأصلية
     });
 
     const parts = response.candidates?.[0]?.content?.parts;
@@ -89,10 +88,11 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         }
       }
     }
-    throw new Error("NO_IMAGE");
+    throw new Error("NO_IMAGE_RETURNED");
   } catch (e: any) {
-    console.error("Vercel Gemini Error:", e);
-    throw new Error("تعذر التحسين. خوادم Vercel لا تستجيب للصور الكبيرة، يرجى تجربة صورة أصغر جداً.");
+    console.error("Gemini Error:", e);
+    // إرجاع رسالة الخطأ الأصلية للمساعدة في التشخيص إذا تكرر الأمر
+    throw new Error(e.message || "فشل التحسين. يرجى المحاولة مرة أخرى.");
   }
 };
 

@@ -48,13 +48,13 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        // 1. نسخة العرض (جودة مقبولة للمستخدم)
+        // 1. نسخة العرض (جودة مقبولة للمستخدم - 800 بكسل)
         const displayBase64 = resizeImage(img, 800, 0.7);
 
-        // 2. نسخة الـ API (مضغوطة جداً للسرعة وتجاوز قيود السيرفر)
-        // عند التحسين نستخدم 300 بكسل، وعند التحليل 512 بكسل
-        const apiMaxDim = mode === 'enhance' ? 300 : 512;
-        const apiQuality = mode === 'enhance' ? 0.4 : 0.6;
+        // 2. نسخة الـ API (مضغوطة لضمان السرعة)
+        // نوحد الحجم لـ 512 بكسل للحالتين لأنك ذكرت أن التحليل (الذي كان 512) يعمل جيداً
+        const apiMaxDim = 512;
+        const apiQuality = 0.6;
         const apiBase64 = resizeImage(img, apiMaxDim, apiQuality);
 
         onImageSelect(displayBase64, apiBase64, mode);
