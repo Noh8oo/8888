@@ -79,6 +79,7 @@ const App: React.FC = () => {
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
+      console.error("Remix Error details:", error);
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -105,6 +106,14 @@ const App: React.FC = () => {
     setSelectedStyle(null);
   };
 
+  const getFriendlyErrorMessage = (errorMsg: string) => {
+    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel (اسم المتغير VITE_API_KEY).";
+    if (errorMsg.includes("400")) return "تعذر معالجة هذه الصورة بالتحديد. يرجى تجربة صورة أخرى أقل تعقيداً.";
+    if (errorMsg.includes("403") || errorMsg.includes("location")) return "الخدمة غير متاحة في منطقتك حالياً أو الحساب محظور.";
+    if (errorMsg.includes("SAFETY")) return "تم حظر الصورة بواسطة فلاتر الأمان. جرب صورة مختلفة.";
+    return errorMsg;
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300 font-sans">
       <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} highlightSupport={state.currentStep === 'results'} />
@@ -115,17 +124,22 @@ const App: React.FC = () => {
         {state.currentStep !== 'upload' && (
           <div className="max-w-[1600px] mx-auto">
             {state.error ? (
-              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700">
+              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold">عذراً، تعذر إكمال الطلب</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed px-4">
-                  {state.error === "API_KEY_MISSING" ? "خطأ في إعدادات API Key بموقع Vercel." : state.error}
-                </p>
+                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">عذراً، حدث خطأ</h3>
+                <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
+                    {getFriendlyErrorMessage(state.error)}
+                  </p>
+                  {state.error.includes("API_KEY") && (
+                     <p className="text-xs text-gray-500 mt-2">تلميح: تأكد من إضافة VITE_API_KEY في إعدادات Vercel</p>
+                  )}
+                </div>
                 <button 
                   onClick={handleReset} 
-                  className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold hover:brightness-110 active:scale-95 transition-all"
+                  className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
                 >
                   العودة والمحاولة مرة أخرى
                 </button>
