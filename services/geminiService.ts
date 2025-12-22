@@ -25,7 +25,7 @@ const checkPayloadSize = (base64: string) => {
   const sizeInMB = sizeInBytes / (1024 * 1024);
   
   // Gemini API Free Tier قد تواجه مشاكل مع الصور الأكبر من 3MB
-  // نضع حداً آمناً عند 2.5MB
+  // نضع حداً آمناً عند 3.0MB لضمان قبول الطلب
   if (sizeInMB > 3.0) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
@@ -129,6 +129,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   }
 
   // 2. المحاولة الثانية: استخراج الوصف + توليد جديد (Text-to-Image)
+  // هذا الملاذ الآمن: نستخدم الوصف النصي فقط إذا فشلت معالجة الصورة
   try {
     console.log("Attempt 2: Describe then Generate");
     
@@ -174,7 +175,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     if (fallbackError.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
   }
 
-  // 3. المحاولة الثالثة: توليد بناءً على النمط فقط
+  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط
   try {
     console.log("Attempt 3: Last Resort (Style Only)");
     const lastResortResponse = await ai.models.generateContent({

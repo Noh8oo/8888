@@ -21,7 +21,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     let width = img.width;
     let height = img.height;
 
-    // الحفاظ على النسبة
+    // الحفاظ على نسبة العرض إلى الارتفاع
     if (width > height) {
       if (width > maxDim) {
         height *= maxDim / width;
@@ -43,15 +43,15 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
     }
-    // إجبار التحويل إلى JPEG لضمان ضغط الحجم
+    // إجبار التحويل إلى JPEG لضمان ضغط الحجم (PNG قد يكون ضخماً)
     return canvas.toDataURL('image/jpeg', quality);
   };
 
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
     
-    // التحقق المبدئي من حجم الملف
-    if (file.size > 15 * 1024 * 1024) { // 15MB hard limit before processing
+    // 1. التحقق المبدئي من حجم الملف الخام (مثلاً 15 ميجابايت كحد أقصى قبل المعالجة)
+    if (file.size > 15 * 1024 * 1024) {
       alert("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 15 ميجابايت.");
       setIsProcessingLocal(false);
       return;
@@ -62,13 +62,13 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         try {
-          // 1. نسخة العرض (جودة عالية للعين البشرية)
+          // 2. إنشاء نسخة العرض (جودة عالية للعين البشرية)
           // Max 1200px, 85% quality
           const displayBase64 = resizeImage(img, 1200, 0.85);
 
-          // 2. نسخة الـ API (نسخة مضغوطة جداً للباقة المجانية)
+          // 3. إنشاء نسخة الـ API (نسخة مضغوطة جداً للباقة المجانية)
           // Max 768px (standard AI input), 60% quality
-          // هذا يضمن أن حجم البايلود غالباً سيكون أقل من 1MB
+          // هذا يضمن أن حجم البايلود غالباً سيكون أقل من 1MB مما يحل مشاكل التايم آوت والرفض
           const apiBase64 = resizeImage(img, 768, 0.6);
 
           onImageSelect(displayBase64, apiBase64, mode);
@@ -94,7 +94,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
           <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز وضغط الصورة...</p>
-          <p className="text-sm text-gray-500 mt-2">نقوم بتحسين الحجم لضمان سرعة المعالجة</p>
+          <p className="text-sm text-gray-500 mt-2">نقوم بتحسين الحجم لضمان سرعة المعالجة مع Gemini</p>
         </div>
       )}
 

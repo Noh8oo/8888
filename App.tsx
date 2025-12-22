@@ -27,7 +27,10 @@ const App: React.FC = () => {
     error: null,
   });
   const [originalImage, setOriginalImage] = useState<string | null>(null);
+  
+  // حفظ النسخة المضغوطة المخصصة للـ API
   const [apiImage, setApiImage] = useState<string | null>(null);
+  
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -43,7 +46,6 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // إظهار رسالة "العملية تأخذ وقتاً" بعد 8 ثواني من التحميل
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (loading) {
@@ -57,9 +59,10 @@ const App: React.FC = () => {
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
+  // تحديث الدالة لاستقبال النسخة المضغوطة أيضاً
   const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
     setOriginalImage(displayBase64);
-    setApiImage(apiBase64);
+    setApiImage(apiBase64); // تخزين النسخة الخفيفة
     
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -69,6 +72,7 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
       try {
+        // استخدام النسخة المضغوطة للإرسال
         const analysis = await analyzeImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
@@ -81,6 +85,7 @@ const App: React.FC = () => {
   };
 
   const handleStyleSelect = async (style: RemixStyle) => {
+    // التأكد من وجود نسخة الـ API
     if (!apiImage) return;
     
     setSelectedStyle(style);
@@ -88,6 +93,7 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
+      // استخدام النسخة المضغوطة للإرسال
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
