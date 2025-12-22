@@ -23,8 +23,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // تقليل الحجم لضمان التوافق مع Vercel و Flash models
-        const MAX_DIM = 800; 
+        // تقليل الحجم لـ 640 بكسل لضمان أقصى درجات التوافق مع الخطة المجانية
+        const MAX_DIM = 640; 
 
         let width = img.width;
         let height = img.height;
@@ -50,8 +50,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // استخدام جودة أقل قليلاً (0.6) لضمان بقاء الحجم صغيراً جداً ومناسباً للنماذج السريعة
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        // استخدام جودة 0.7 لتوازن ممتاز بين الحجم والوضوح
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         onImageSelect(compressedBase64, mode);
         setIsProcessingLocal(false);
       };
@@ -65,8 +65,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري تحسين الصورة للعمل بشكل مجاني...</p>
-          <p className="text-xs text-gray-500 mt-2 max-w-xs leading-relaxed">نقوم بضغط الصورة لضمان استقرار الخدمة وتجنب أخطاء الشبكة على Vercel</p>
+          <p className="font-bold text-dark dark:text-white">جاري تحضير الصورة للخطة المجانية...</p>
+          <p className="text-xs text-gray-500 mt-2 max-w-xs leading-relaxed">نقوم بضغط الصورة لضمان استقرار المعالجة وتوفير استهلاك البيانات.</p>
         </div>
       )}
 
@@ -75,7 +75,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          تحليل وتحسين صورك مجاناً وبسرعة فائقة.
+          حلل وحسن صورك مجاناً وبأحدث تقنيات Google Gemini.
         </p>
       </div>
 
@@ -83,15 +83,15 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <ToolCard 
           id="fileInputAnalyze" 
           title="تحليل الصور" 
-          desc="استخراج البيانات والوصف بذكاء اصطناعي فائق." 
+          desc="استخراج النمط والألوان والوصف بدقة عالية." 
           icon={<Search className="w-8 h-8 text-primary" />}
           colorClass="bg-blue-100 dark:bg-blue-900/30 border-primary"
           onFileSelect={(e) => handleFileInput(e, 'analyze')}
         />
         <ToolCard 
           id="fileInputEnhance" 
-          title="تحسين الجودة" 
-          desc="إصلاح الإضاءة والحدة وتحسين التفاصيل فوراً." 
+          title="تحسين لومينا" 
+          desc="تعديل الإضاءة والوضوح بلمسة واحدة." 
           icon={<Wand2 className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
           onFileSelect={(e) => handleFileInput(e, 'enhance')}
@@ -100,7 +100,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
 
       <div className="bg-gray-50 dark:bg-gray-800/30 rounded-[2rem] p-8 border border-gray-100 dark:border-gray-700 text-center">
          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            تم تطوير لومينا بواسطة <strong>نهاد محمد</strong> • مدعوم بـ Gemini AI
+            تم التطوير بواسطة <strong>نهاد محمد</strong> • متوافق مع الخطة المجانية
          </p>
       </div>
     </div>
