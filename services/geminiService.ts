@@ -15,7 +15,18 @@ const validateApiKey = () => {
   const key = process.env.API_KEY;
   if (!key || key.trim() === '' || key === 'undefined') {
     console.error("API Key Check Failed: Key is missing.");
-    throw new Error("API_KEY_MISSING");
+    throw new Error("ERROR_API_KEY_MISSING");
+  }
+};
+
+const checkPayloadSize = (base64: string) => {
+  // حساب تقريبي لحجم البايتات: (طول السلسلة * 3) / 4
+  const sizeInBytes = (base64.length * 3) / 4;
+  const sizeInMB = sizeInBytes / (1024 * 1024);
+  
+  // Gemini API يقبل حتى 4MB في الطلب الواحد، لكننا نضع حداً آمناً 3MB
+  if (sizeInMB > 3.5) {
+    throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
 };
 
@@ -30,8 +41,10 @@ const SAFETY_SETTINGS = [
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   validateApiKey();
-  const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
+  checkPayloadSize(cleanBase64);
+  
+  const mimeType = getMimeType(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -62,19 +75,23 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
     });
 
-    if (!response.text) throw new Error("EMPTY");
+    if (!response.text) throw new Error("EMPTY_RESPONSE");
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
     console.error("Analysis Error:", e);
-    if (e.message === "API_KEY_MISSING") throw e;
-    throw new Error("فشل تحليل الصورة. حاول مرة أخرى.");
+    if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
+    if (e.message.includes("413") || e.message.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
+    if (e.message.includes("Failed to fetch")) throw new Error("ERROR_NETWORK");
+    throw new Error(`ERROR_ANALYSIS_FAILED: ${e.message}`);
   }
 };
 
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
   validateApiKey();
-  const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
+  checkPayloadSize(cleanBase64); // فحص الحجم قبل الإرسال
+  
+  const mimeType = getMimeType(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   let description = "A creative artistic composition";
@@ -101,16 +118,19 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Attempt 1 Failed: No image returned.");
+    console.warn("Attempt 1 Failed: No image returned or safety block.");
   } catch (e: any) {
     console.warn("Attempt 1 Error:", e.message);
+    if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
+    if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
   }
 
   // 2. المحاولة الثانية: استخراج الوصف + توليد جديد (Text-to-Image)
+  // هذه الطريقة أكثر موثوقية إذا فشلت الأولى بسبب الفلاتر
   try {
     console.log("Attempt 2: Describe then Generate");
     
-    // محاولة وصف الصورة (قد تفشل إذا كانت الصورة محظورة)
+    // وصف الصورة أولاً
     const analysisResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -126,6 +146,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     }
     console.log("Description obtained:", description);
 
+    // توليد صورة جديدة بناءً على الوصف
     const genResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -148,10 +169,9 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
 
   } catch (fallbackError: any) {
     console.warn("Attempt 2 Error:", fallbackError.message);
-    // إذا فشل وصف الصورة (بسبب الأمان)، ننتقل للمحاولة الثالثة
   }
 
-  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط (Last Resort)
+  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط
   try {
     console.log("Attempt 3: Last Resort (Style Only)");
     const lastResortResponse = await ai.models.generateContent({
@@ -177,7 +197,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   }
 
   // إذا وصلنا هنا، فكل شيء فشل
-  throw new Error("FAILED_GENERATION");
+  throw new Error("ERROR_GENERATION_FAILED");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {

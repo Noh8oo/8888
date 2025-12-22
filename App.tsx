@@ -120,11 +120,28 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel.";
-    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
-    if (errorMsg.includes("400")) return "تعذر معالجة الطلب. يرجى تجربة صورة مختلفة أو نمط آخر.";
-    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
-    return "حدث خطأ غير متوقع أثناء المعالجة.";
+    // ترجمة رموز الأخطاء إلى رسائل مفهومة
+    if (errorMsg.includes("ERROR_API_KEY_MISSING")) {
+      return "لم يتم العثور على مفتاح API. يرجى التأكد من إضافته في إعدادات البيئة (Environment Variables).";
+    }
+    if (errorMsg.includes("ERROR_IMAGE_TOO_LARGE") || errorMsg.includes("413")) {
+      return "حجم الصورة كبير جداً بالنسبة للخادم. حاول استخدام صورة أصغر حجماً أو أقل دقة.";
+    }
+    if (errorMsg.includes("ERROR_NETWORK") || errorMsg.includes("Failed to fetch")) {
+      return "مشكلة في الاتصال بالإنترنت أو الخادم. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
+    }
+    if (errorMsg.includes("ERROR_GENERATION_FAILED")) {
+      return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
+    }
+    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) {
+      return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
+    }
+    if (errorMsg.includes("SAFETY") || errorMsg.includes("blocked")) {
+      return "تم رفض معالجة الصورة لأسباب تتعلق بسياسات المحتوى الآمن.";
+    }
+    
+    // رسالة افتراضية
+    return "حدث خطأ غير متوقع أثناء المعالجة. يرجى المحاولة بصورة أخرى.";
   };
 
   return (
