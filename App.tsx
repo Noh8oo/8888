@@ -7,15 +7,15 @@ import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette, Zap } from 'lucide-react';
 
 const REMIX_STYLES: RemixStyle[] = [
-  { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography' },
-  { id: 'cinematic', name: 'سينمائي', icon: '🎬', color: 'bg-red-500', prompt: 'Cinematic lighting, dramatic atmosphere, movie scene, depth of field, 8k' },
-  { id: 'anime', name: 'أنمي ياباني', icon: '👻', color: 'bg-pink-500', prompt: 'Japanese anime style, vibrant colors, studio ghibli style, detailed illustration' },
-  { id: '3d', name: 'ثلاثي الأبعاد', icon: '🧊', color: 'bg-indigo-500', prompt: '3D render, Pixar style, cute, smooth textures, volumetric lighting, unreal engine 5' },
-  { id: 'cyberpunk', name: 'سايبر بانك', icon: '⚡', color: 'bg-yellow-500', prompt: 'Cyberpunk style, neon lights, futuristic city background, night time, rain' },
-  { id: 'sketch', name: 'رسم يدوي', icon: '✏️', color: 'bg-gray-500', prompt: 'Pencil sketch, hand drawn, artistic, charcoal, detailed lines' },
+  { id: 'enhance', name: 'تحسين الجودة', icon: '✨', color: 'bg-emerald-500', prompt: 'Enhance this image: fix exposure, sharpen details, improve overall quality professionally, and make it look high-end.' },
+  { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography.' },
+  { id: 'cinematic', name: 'سينمائي', icon: '🎬', color: 'bg-red-500', prompt: 'Cinematic lighting, dramatic atmosphere, movie scene, depth of field, 8k.' },
+  { id: 'anime', name: 'أنمي ياباني', icon: '👻', color: 'bg-pink-500', prompt: 'Japanese anime style, vibrant colors, studio ghibli style, detailed illustration.' },
+  { id: '3d', name: 'ثلاثي الأبعاد', icon: '🧊', color: 'bg-indigo-500', prompt: '3D render, Pixar style, cute, smooth textures, volumetric lighting, unreal engine 5.' },
+  { id: 'cyberpunk', name: 'سايبر بانك', icon: '⚡', color: 'bg-yellow-500', prompt: 'Cyberpunk style, neon lights, futuristic city background, night time, rain.' },
 ];
 
 const App: React.FC = () => {
@@ -28,7 +28,7 @@ const App: React.FC = () => {
   });
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   
-  // حفظ النسخة المضغوطة المخصصة للـ API
+  // حفظ النسخة المضغوطة المخصصة للـ API (بحجم 1024px)
   const [apiImage, setApiImage] = useState<string | null>(null);
   
   const [currentDescription, setCurrentDescription] = useState<string>('');
@@ -36,7 +36,9 @@ const App: React.FC = () => {
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
-  const [longProcessTip, setLongProcessTip] = useState(false);
+  
+  // Status variable for displaying detailed progress
+  const [status, setStatus] = useState<string>("");
 
   useEffect(() => {
     if (isDarkMode) {
@@ -46,40 +48,28 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (loading) {
-      setLongProcessTip(false);
-      timer = setTimeout(() => setLongProcessTip(true), 8000);
-    } else {
-      setLongProcessTip(false);
-    }
-    return () => clearTimeout(timer);
-  }, [loading]);
-
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  // تحديث الدالة لاستقبال النسخة المضغوطة أيضاً
   const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
     setOriginalImage(displayBase64);
-    setApiImage(apiBase64); // تخزين النسخة الخفيفة
+    setApiImage(apiBase64); 
     
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (mode === 'remix') {
+      setStatus("الصورة جاهزة للتحسين");
       setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
+      setStatus("جاري تحليل الصورة...");
       try {
-        // استخدام النسخة المضغوطة (apiBase64) للإرسال للتحليل
-        console.log("Starting analysis...");
         const analysis = await analyzeImageWithGemini(apiBase64);
-        console.log("Analysis complete:", analysis);
+        setStatus("تم التحليل بنجاح!");
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
-        console.error("Analysis Failed inside App:", error);
+        setStatus("حدث خطأ في التحليل");
         setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
       } finally {
         setLoading(false);
@@ -88,19 +78,21 @@ const App: React.FC = () => {
   };
 
   const handleStyleSelect = async (style: RemixStyle) => {
-    // التأكد من وجود نسخة الـ API
     if (!apiImage) return;
     
     setSelectedStyle(style);
     setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
     setLoading(true);
+    setStatus("يتواصل لومينا مع الذكاء الاصطناعي...");
 
     try {
-      // استخدام النسخة المضغوطة للإرسال
+      // الاتصال المباشر باستخدام الصورة المجهزة (1024px)
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
+      setStatus("تمت المعالجة بنجاح!");
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
       console.error("Remix Error details:", error);
+      setStatus("فشلت عملية التحسين");
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -126,10 +118,10 @@ const App: React.FC = () => {
     setCurrentDescription('');
     setSelectedStyle(null);
     setLoading(false);
+    setStatus("");
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    // ترجمة رموز الأخطاء إلى رسائل مفهومة ودية
     if (errorMsg.includes("ERROR_API_KEY_MISSING")) {
       return "لم يتم العثور على مفتاح API. تأكد من إضافته في إعدادات البيئة.";
     }
@@ -148,8 +140,6 @@ const App: React.FC = () => {
     if (errorMsg.includes("SAFETY") || errorMsg.includes("blocked")) {
       return "رفض النموذج معالجة الصورة لأسباب تتعلق بسياسات المحتوى الآمن.";
     }
-    
-    // رسالة افتراضية
     return "حدث خطأ غير متوقع. يرجى المحاولة بصورة أخرى.";
   };
 
@@ -198,17 +188,12 @@ const App: React.FC = () => {
                           <div className="flex flex-col items-start">
                              <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
                                <RefreshCw className="w-3 h-3 animate-spin" /> 
-                               {state.toolMode === 'remix' ? 'جاري الرسم (قد يستغرق 30 ثانية)...' : 'جاري التحليل...'}
+                               {status || (state.toolMode === 'remix' ? 'جاري المعالجة...' : 'جاري التحليل...')}
                              </span>
-                             {longProcessTip && (
-                               <span className="text-[10px] text-orange-500 font-medium mt-1 animate-fade-in">
-                                  العملية تأخذ وقتاً لضمان أعلى جودة، يرجى الانتظار...
-                               </span>
-                             )}
                           </div>
                         ) : state.currentStep === 'style-selection' ? (
                           <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
-                            <Sparkles className="w-3 h-3" /> بانتظار اختيار النمط
+                            <Sparkles className="w-3 h-3" /> اختر نمط التحسين
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
@@ -236,7 +221,7 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <a 
                           href={state.image || ''} 
-                          download="lumina_remix.png"
+                          download="lumina_result.png"
                           className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
                         >
                           <Download className="w-6 h-6" /> تحميل الصورة
@@ -256,8 +241,8 @@ const App: React.FC = () => {
                     {state.currentStep === 'style-selection' && (
                       <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
                         <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                          <Palette className="w-5 h-5 text-purple-500" />
-                          اختر نمط التحويل
+                          <Zap className="w-5 h-5 text-yellow-500" />
+                          اختر نمط التحسين
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                           {REMIX_STYLES.map((style) => (
@@ -273,7 +258,7 @@ const App: React.FC = () => {
                           ))}
                         </div>
                         <p className="text-xs text-gray-400 mt-6 text-center">
-                          سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل بناءً على النمط المختار.
+                          {status}
                         </p>
                       </div>
                     )}

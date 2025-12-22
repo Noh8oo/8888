@@ -13,17 +13,17 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, mode: ToolMode) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0], mode);
-      // Reset input value to allow selecting the same file again if needed
       e.target.value = '';
     }
   };
 
-  const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number): string => {
+  // تطبيق منطق prepareImage المطلوب: 1024 بكسل كحد أقصى
+  const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number, mimeType: string = 'image/jpeg'): string => {
     const canvas = document.createElement('canvas');
     let width = img.width;
     let height = img.height;
 
-    // الحفاظ على النسبة
+    // الحفاظ على نسبة العرض إلى الارتفاع مع حد أقصى
     if (width > height) {
       if (width > maxDim) {
         height *= maxDim / width;
@@ -40,29 +40,19 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // إعدادات لتحسين جودة التصغير
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
     }
     
-    // إجبار التحويل إلى JPEG لتقليل الحجم بشكل كبير
-    return canvas.toDataURL('image/jpeg', quality);
+    return canvas.toDataURL(mimeType, quality);
   };
 
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
     
-    // التحقق من نوع الملف
     if (!file.type.startsWith('image/')) {
       alert("يرجى اختيار ملف صورة صالح.");
-      setIsProcessingLocal(false);
-      return;
-    }
-
-    // التحقق المبدئي من حجم الملف الخام (15MB حد أقصى للمعالجة في المتصفح)
-    if (file.size > 15 * 1024 * 1024) {
-      alert("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 15 ميجابايت.");
       setIsProcessingLocal(false);
       return;
     }
@@ -72,12 +62,12 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         try {
-          // 1. نسخة العرض: جودة عالية (1200px, 85%)
-          const displayBase64 = resizeImage(img, 1200, 0.85);
+          // 1. نسخة العرض (Display): جودة عالية للعرض على الشاشة
+          const displayBase64 = resizeImage(img, 1500, 0.90);
 
-          // 2. نسخة الـ API: مضغوطة جداً (Max 800px, 50% Quality)
-          // تقليل الجودة لـ 0.5 يضمن أن الحجم سيكون صغيراً جداً (غالباً < 200KB) مما يسرع التحليل جداً
-          const apiBase64 = resizeImage(img, 800, 0.5);
+          // 2. نسخة الـ API (PrepareImage Logic): 
+          // حسب طلبك: Max 1024px, 0.85 Quality لضمان سرعة المعالجة والرفع
+          const apiBase64 = resizeImage(img, 1024, 0.85);
 
           onImageSelect(displayBase64, apiBase64, mode);
         } catch (err) {
@@ -107,8 +97,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري تحضير الصورة...</p>
-          <p className="text-sm text-gray-500 mt-2">نقوم بضغط الصورة لضمان سرعة الذكاء الاصطناعي</p>
+          <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز الصورة...</p>
+          <p className="text-sm text-gray-500 mt-2">نقوم بضغط وتحسين الصورة لضمان سرعة الذكاء الاصطناعي</p>
         </div>
       )}
 
@@ -133,7 +123,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <ToolCard 
           id="fileInputRemix" 
           title="إستوديو لومينا" 
-          desc="حول صورك إلى لوحات فنية، أنمي، أو حسّن جودتها بأسلوب واقعي." 
+          desc="حول صورك إلى لوحات فنية، أو حسن جودتها وإضاءتها بضغطة زر." 
           icon={<Palette className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
           onFileSelect={(e) => handleFileInput(e, 'remix')}
