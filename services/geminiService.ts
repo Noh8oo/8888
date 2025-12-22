@@ -63,7 +63,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Simplified prompt to reduce processing time and complexity
+  // Use gemini-2.5-flash-image which is the standard for image editing tasks
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
@@ -75,7 +75,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
           },
         },
         {
-          text: 'Enhance this image: remove noise, sharpen details, and increase clarity. Keep original geometry and colors.',
+          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Strictly maintain the original colors and geometry.',
         },
       ],
     },
@@ -89,7 +89,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
     }
   }
 
-  throw new Error("No image data returned from API");
+  throw new Error("لم يتم إرجاع أي صورة. يرجى التأكد من صلاحية مفتاح الـ API وحجم الصورة.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
