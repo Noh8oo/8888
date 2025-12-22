@@ -35,21 +35,22 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, high
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleSupportClick}
-        className={`relative overflow-hidden flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 group shadow-sm hover:shadow-md 
+        aria-label="ادعم تطوير لومينا عبر Ko-fi"
+        className={`relative overflow-hidden flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 group hover:scale-105 active:scale-95
           ${isLitUp 
-            ? 'bg-rose-500 text-white border-rose-400 animate-glow-pulse scale-105 ring-4 ring-rose-500/20' 
-            : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800/50'
+            ? 'bg-rose-600 text-white border-rose-500 animate-glow-pulse ring-4 ring-rose-500/20' 
+            : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent hover:bg-rose-600 hover:text-white hover:border-rose-500 hover:shadow-[0_0_20px_rgba(225,29,72,0.4)] dark:hover:bg-rose-700'
           }`}
         title="ادعم تطوير الموقع"
       >
         {/* Shine Overlay Effect */}
-        {isLitUp && (
-          <div className="absolute inset-0 w-full h-full pointer-events-none">
-            <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-white/30 skew-x-[-25deg] animate-shine"></div>
-          </div>
-        )}
+        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden rounded-xl">
+          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-white/20 skew-x-[-25deg] group-hover:animate-shine"></div>
+        </div>
 
-        <Heart className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 
+        <Heart 
+          aria-hidden="true"
+          className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 
           ${isLitUp ? 'fill-current animate-bounce' : 'group-hover:fill-current group-hover:scale-110'}`} 
         />
         <span className="font-bold text-xs sm:text-sm">ادعمنا</span>
@@ -58,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, high
       <div className="flex items-center gap-2 sm:gap-4">
          <button 
            onClick={toggleDarkMode} 
+           aria-label={isDarkMode ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
            title={isDarkMode ? "الوضع الفاتح" : "الوضع الداكن"}
          >
@@ -68,12 +70,15 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, high
            className="group relative flex items-center gap-2 cursor-pointer"
            onMouseEnter={() => setIsHovered(true)}
            onMouseLeave={() => setIsHovered(false)}
+           role="img"
+           aria-label="شعار لومينا"
          >
             {/* Logo Container */}
             <div className={`relative w-8 h-8 rounded-lg flex items-center justify-center font-bold shadow-lg transition-all duration-300 z-10 
               ${isHovered ? 'bg-primary shadow-primary/60 scale-110' : 'bg-primary shadow-primary/30'}
             `}>
               <Zap 
+                aria-hidden="true"
                 className={`w-5 h-5 text-white transition-all duration-100 ${isHovered ? 'animate-shiver' : ''}`} 
                 fill="currentColor" 
               />

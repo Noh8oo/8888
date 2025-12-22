@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { UploadCloud, Image as ImageIcon, Sparkles, Wand2, Search } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, Wand2, Search, Palette } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -46,38 +46,38 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-8 px-4">
+    <div className="w-full max-w-6xl mx-auto py-8 px-4">
       <div className="text-center mb-12 space-y-4">
         <h1 className="font-display text-4xl md:text-5xl font-bold text-dark dark:text-white leading-tight">
           مختبر <span className="text-primary">لومينا</span> للذكاء الاصطناعي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg">
-          اختر الأداة المناسبة لعملك وابدأ تجربة التحليل أو التحسين الفوري.
+          استكشف قدرات الذكاء الاصطناعي في تحليل، تحسين، وتحويل صورك بلمسة واحدة.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {/* Tool 1: Analysis */}
         <div 
           onClick={() => document.getElementById('fileInputAnalyze')?.click()}
           onDragOver={(e) => { handleDragOver(e); setSelectedTool('analyze'); }}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative p-8 rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer group flex flex-col items-center text-center
+          className={`relative p-6 rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer group flex flex-col items-center text-center
             ${isDragging && selectedTool === 'analyze' 
               ? 'border-primary bg-primary/5 scale-[1.02]' 
               : 'border-gray-200 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
         >
           <input type="file" id="fileInputAnalyze" className="hidden" accept="image/*" onChange={(e) => handleFileInput(e, 'analyze')} />
-          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Search className="w-8 h-8 text-primary" />
+          <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Search className="w-7 h-7 text-primary" />
           </div>
-          <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">تحليل الصور المعمق</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
-            استخرج الألوان، الأنماط، التخطيط، والبرومبت المخصص لإعادة الإنتاج بذكاء.
+          <h3 className="text-xl font-bold text-dark dark:text-white mb-2">تحليل الصور</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+            استخراج الألوان والأنماط والوصف التفصيلي للصورة.
           </p>
-          <div className="flex items-center gap-2 text-primary font-bold text-sm">
+          <div className="mt-auto flex items-center gap-2 text-primary font-bold text-xs">
             <UploadCloud className="w-4 h-4" />
             <span>ارفع للتحليل</span>
           </div>
@@ -89,25 +89,51 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           onDragOver={(e) => { handleDragOver(e); setSelectedTool('enhance'); }}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative p-8 rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer group flex flex-col items-center text-center
+          className={`relative p-6 rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer group flex flex-col items-center text-center
             ${isDragging && selectedTool === 'enhance' 
               ? 'border-purple-500 bg-purple-500/5 scale-[1.02]' 
               : 'border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
         >
           <input type="file" id="fileInputEnhance" className="hidden" accept="image/*" onChange={(e) => handleFileInput(e, 'enhance')} />
-          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Wand2 className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+          <div className="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Wand2 className="w-7 h-7 text-purple-600 dark:text-purple-400" />
           </div>
-          <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">تحسين الجودة الاحترافي</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
-            ارفع دقة الصورة، أصلح التشويش، وأضف تفاصيل سينمائية فائقة الوضوح (AI Up-scale).
+          <h3 className="text-xl font-bold text-dark dark:text-white mb-2">تحسين الجودة</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+            رفع الدقة وإصلاح التشويش باستخدام تقنيات Super-Res.
           </p>
-          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-sm">
+          <div className="mt-auto flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-xs">
             <Sparkles className="w-4 h-4" />
             <span>ارفع للتحسين</span>
           </div>
-          <span className="absolute top-4 left-4 bg-purple-600 text-white text-[10px] px-2 py-1 rounded-full font-bold">PRO</span>
+        </div>
+
+        {/* Tool 3: Transformation (Artistic Styles) */}
+        <div 
+          onClick={() => document.getElementById('fileInputTransform')?.click()}
+          onDragOver={(e) => { handleDragOver(e); setSelectedTool('transform'); }}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative p-6 rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer group flex flex-col items-center text-center
+            ${isDragging && selectedTool === 'transform' 
+              ? 'border-orange-500 bg-orange-500/5 scale-[1.02]' 
+              : 'border-gray-200 dark:border-gray-700 hover:border-orange-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+            }`}
+        >
+          <input type="file" id="fileInputTransform" className="hidden" accept="image/*" onChange={(e) => handleFileInput(e, 'transform')} />
+          <div className="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Palette className="w-7 h-7 text-orange-600 dark:text-orange-400" />
+          </div>
+          <h3 className="text-xl font-bold text-dark dark:text-white mb-2">استوديو الفن</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-4">
+            تحويل صورك إلى لوحات فنية، أنمي، أو تصاميم ثلاثية الأبعاد.
+          </p>
+          <div className="mt-auto flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-xs">
+            <Palette className="w-4 h-4" />
+            <span>ارفع للتلوين</span>
+          </div>
+          <span className="absolute top-4 left-4 bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">جديد</span>
         </div>
       </div>
 
@@ -119,7 +145,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
                <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-900 bg-green-400 flex items-center justify-center text-white text-xs font-bold">HD</div>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-               مدعوم بأحدث تقنيات <strong>Gemini 2.5</strong> لمعالجة الصور وتوليد المحتوى.
+               من <strong>نهاد محمد</strong>
             </p>
          </div>
       </div>

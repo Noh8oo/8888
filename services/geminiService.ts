@@ -2,21 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-let aiInstance: GoogleGenAI | null = null;
-
-const getAi = () => {
-  if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }
-  return aiInstance;
-};
-
+// Always initialize a new instance within the function to ensure up-to-date API keys and configurations.
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-  const ai = getAi();
+  // Using a fresh instance for each request as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     contents: {
       parts: [
         {
@@ -71,7 +64,8 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 
 export const enhanceImageWithGemini = async (base64Image: string): Promise<string> => {
   const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-  const ai = getAi();
+  // Using a fresh instance for each request as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
@@ -90,20 +84,56 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
     },
   });
 
-  for (const part of response.candidates[0].content.parts) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+  if (response.candidates && response.candidates[0]?.content?.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
   }
 
   throw new Error("No image was returned");
 };
 
+export const transformImageWithGemini = async (base64Image: string, styleInstruction: string): Promise<string> => {
+  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  // Using a fresh instance for each request as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            data: cleanBase64,
+            mimeType: 'image/jpeg',
+          },
+        },
+        {
+          text: `Transform this image into the following style: ${styleInstruction}. Maintain the overall composition and recognizable subjects but completely change the artistic rendering to fit the requested style. High quality output.`,
+        },
+      ],
+    },
+  });
+
+  if (response.candidates && response.candidates[0]?.content?.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  }
+
+  throw new Error("Transformation failed");
+};
+
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   try {
-    const ai = getAi();
+    // Using a fresh instance for each request as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `لديك وصف لصورة: "${originalDescription}". المطلوب: تعديله بناءً على: "${userInstruction}". أجب بالنص الجديد فقط.`,
     });
     return response.text || originalDescription;
@@ -113,9 +143,10 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
 };
 
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
-  const ai = getAi();
+  // Using a fresh instance for each request as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const chat = ai.chats.create({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     history: history,
     config: {
       systemInstruction: "أنت مساعد ذكي متخصص في التصميم وتحليل الصور. أجب دائماً باللغة العربية وبأسلوب مهني وودود."
