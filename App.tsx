@@ -28,7 +28,7 @@ const App: React.FC = () => {
   });
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   
-  // حفظ النسخة المضغوطة المخصصة للـ API (بحجم 1024px)
+  // حفظ النسخة المضغوطة المخصصة للـ API (بحجم 768px الآن)
   const [apiImage, setApiImage] = useState<string | null>(null);
   
   const [currentDescription, setCurrentDescription] = useState<string>('');
@@ -37,7 +37,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
   
-  // Status variable for displaying detailed progress
+  // متغير الحالة لتتبع تقدم الاتصال المباشر
   const [status, setStatus] = useState<string>("");
 
   useEffect(() => {
@@ -57,19 +57,19 @@ const App: React.FC = () => {
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (mode === 'remix') {
-      setStatus("الصورة جاهزة للتحسين");
+      setStatus("الصورة جاهزة - الاتصال مباشر");
       setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
-      setStatus("جاري تحليل الصورة...");
+      setStatus("جاري الاتصال بجوجل مباشرة...");
       try {
         const analysis = await analyzeImageWithGemini(apiBase64);
         setStatus("تم التحليل بنجاح!");
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
-        setStatus("حدث خطأ في التحليل");
+        setStatus("حدث خطأ في الاتصال");
         setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
       } finally {
         setLoading(false);
@@ -83,16 +83,16 @@ const App: React.FC = () => {
     setSelectedStyle(style);
     setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
     setLoading(true);
-    setStatus("يتواصل لومينا مع الذكاء الاصطناعي...");
+    setStatus("جاري الإرسال لجوجل مباشرة (بدون وسيط)...");
 
     try {
-      // الاتصال المباشر باستخدام الصورة المجهزة (1024px)
+      // الاتصال المباشر باستخدام الصورة المجهزة (768px)
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
-      setStatus("تمت المعالجة بنجاح!");
+      setStatus("تم الاستلام من جوجل!");
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
       console.error("Remix Error details:", error);
-      setStatus("فشلت عملية التحسين");
+      setStatus("فشل الاتصال المباشر");
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -188,7 +188,7 @@ const App: React.FC = () => {
                           <div className="flex flex-col items-start">
                              <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
                                <RefreshCw className="w-3 h-3 animate-spin" /> 
-                               {status || (state.toolMode === 'remix' ? 'جاري المعالجة...' : 'جاري التحليل...')}
+                               {status || (state.toolMode === 'remix' ? 'جاري المعالجة المباشرة...' : 'جاري التحليل...')}
                              </span>
                           </div>
                         ) : state.currentStep === 'style-selection' ? (
