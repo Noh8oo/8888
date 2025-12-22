@@ -95,14 +95,14 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    // استخدام الموديل المحدد gemini-2.5-flash-image للاتصال المباشر والسريع
+    // 1. تصحيح: استخدام اسم الموديل gemini-2.5-flash-image-preview
+    // 2. تصحيح: إرسال الصورة أولاً ثم النص (Critical for Img2Img)
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image', // Equivalent to 2.5-flash-image-preview
+      model: 'gemini-2.5-flash-image-preview', 
       contents: {
         parts: [
-          // Prompt first or image first works, but instruction first is often better for instructions
+          { inlineData: { data: cleanBase64, mimeType } }, // Image must be first usually
           { text: stylePrompt },
-          { inlineData: { data: cleanBase64, mimeType } }
         ],
       },
       config: { 
@@ -119,7 +119,6 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       }
     }
     
-    // إذا لم ترجع صورة
     throw new Error("NO_IMAGE_RETURNED");
 
   } catch (e: any) {
@@ -127,6 +126,12 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
     if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
+    
+    // إذا كان الموديل غير مدعوم، نحاول بالموديل المستقر كخطة بديلة
+    if (e.message.includes("not found") || e.message.includes("404")) {
+         throw new Error("ERROR_MODEL_NOT_FOUND");
+    }
+    
     throw new Error("ERROR_GENERATION_FAILED");
   }
 };

@@ -17,7 +17,6 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     }
   };
 
-  // تطبيق منطق prepareImage المطلوب: 1024 بكسل كحد أقصى
   const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number, mimeType: string = 'image/jpeg'): string => {
     const canvas = document.createElement('canvas');
     let width = img.width;
@@ -62,12 +61,13 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         try {
-          // 1. نسخة العرض (Display): جودة عالية للعرض على الشاشة
+          // 1. نسخة العرض (Display): جودة عالية للعرض على الشاشة (1500px, 90%)
           const displayBase64 = resizeImage(img, 1500, 0.90);
 
-          // 2. نسخة الـ API (PrepareImage Logic): 
-          // حسب طلبك: Max 1024px, 0.85 Quality لضمان سرعة المعالجة والرفع
-          const apiBase64 = resizeImage(img, 1024, 0.85);
+          // 2. نسخة الـ API (Optimized): 
+          // تم تقليل الجودة إلى 0.60 لتسريع الرفع والتحليل بشكل كبير (حل مشكلة البطء)
+          // الحجم 1024 بكسل ممتاز للذكاء الاصطناعي مع جودة متوسطة
+          const apiBase64 = resizeImage(img, 1024, 0.60);
 
           onImageSelect(displayBase64, apiBase64, mode);
         } catch (err) {
