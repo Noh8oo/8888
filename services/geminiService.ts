@@ -60,26 +60,27 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   }
 };
 
-export const enhanceImageWithGemini = async (base64Image: string): Promise<string> => {
+export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
   const apiKey = validateApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // تم إزالة imageConfig لأنها تسبب خطأ 400 عند إرسال صورة كمدخل
-    // تم تحسين الأمر ليكون أكثر وضوحاً للنموذج
+    // نستخدم gemini-2.5-flash-image لمهام توليد الصور
+    // المبدأ: صورة + نص = صورة جديدة
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'Improve image quality, lighting, and clarity. Return the improved image.' }
+          { text: `Follow this style strictly: ${stylePrompt}. Maintain the main composition and subject of the original image but redraw it with high quality.` }
         ],
       },
-      // لا نضع config للأبعاد هنا، نترك النموذج يحدد بناءً على الصورة الأصلية
+      // لا نستخدم imageConfig لتجنب مشاكل الأبعاد، نترك النموذج يقرر
     });
 
+    // البحث عن جزء الصورة في الاستجابة
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
@@ -88,11 +89,10 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         }
       }
     }
-    throw new Error("NO_IMAGE_RETURNED");
+    throw new Error("لم يتم إرجاع صورة من النموذج.");
   } catch (e: any) {
-    console.error("Gemini Error:", e);
-    // إرجاع رسالة الخطأ الأصلية للمساعدة في التشخيص إذا تكرر الأمر
-    throw new Error(e.message || "فشل التحسين. يرجى المحاولة مرة أخرى.");
+    console.error("Gemini Remix Error:", e);
+    throw new Error("تعذر إعادة تخيل الصورة. قد تكون الصورة تحتوي على محتوى غير مسموح به أو الخادم مشغول.");
   }
 };
 

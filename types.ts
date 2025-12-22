@@ -17,11 +17,21 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export type ToolMode = 'analyze' | 'enhance' | null;
+// تغيير اسم الوضع من enhance إلى remix
+export type ToolMode = 'analyze' | 'remix' | null;
 
 export interface AppState {
-  currentStep: 'upload' | 'analyzing' | 'enhancing' | 'results';
+  // إضافة خطوة اختيار النمط
+  currentStep: 'upload' | 'style-selection' | 'analyzing' | 'processing' | 'results';
   toolMode: ToolMode;
   image: string | null; // Base64 string
   analysis: ImageAnalysis | null;
+}
+
+export interface RemixStyle {
+  id: string;
+  name: string;
+  icon: string;
+  prompt: string;
+  color: string;
 }

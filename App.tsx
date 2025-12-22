@@ -5,9 +5,18 @@ import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
-import { AppState, ToolMode } from './types';
-import { analyzeImageWithGemini, refineDescriptionWithGemini, enhanceImageWithGemini } from './services/geminiService';
-import { Share2, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft } from 'lucide-react';
+import { AppState, ToolMode, RemixStyle } from './types';
+import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
+import { Share2, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette, Camera, Ghost, Box, Zap } from 'lucide-react';
+
+const REMIX_STYLES: RemixStyle[] = [
+  { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography' },
+  { id: 'cinematic', name: 'سينمائي', icon: '🎬', color: 'bg-red-500', prompt: 'Cinematic lighting, dramatic atmosphere, movie scene, depth of field, 8k' },
+  { id: 'anime', name: 'أنمي ياباني', icon: '👻', color: 'bg-pink-500', prompt: 'Japanese anime style, vibrant colors, studio ghibli style, detailed illustration' },
+  { id: '3d', name: 'ثلاثي الأبعاد', icon: '🧊', color: 'bg-indigo-500', prompt: '3D render, Pixar style, cute, smooth textures, volumetric lighting, unreal engine 5' },
+  { id: 'cyberpunk', name: 'سايبر بانك', icon: '⚡', color: 'bg-yellow-500', prompt: 'Cyberpunk style, neon lights, futuristic city background, night time, rain' },
+  { id: 'sketch', name: 'رسم يدوي', icon: '✏️', color: 'bg-gray-500', prompt: 'Pencil sketch, hand drawn, artistic, charcoal, detailed lines' },
+];
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -18,10 +27,12 @@ const App: React.FC = () => {
     error: null,
   });
   const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [apiImage, setApiImage] = useState<string | null>(null); // Store the compressed image for API
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -34,30 +45,18 @@ const App: React.FC = () => {
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
   const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
-    // عرض الصورة ذات الجودة الجيدة للمستخدم
     setOriginalImage(displayBase64);
-    setState(prev => ({ ...prev, error: null, toolMode: mode }));
+    setApiImage(apiBase64);
     
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    if (mode === 'enhance') {
-      // عرض الصورة الجيدة أثناء التحميل
-      setState(prev => ({ ...prev, currentStep: 'enhancing', image: displayBase64 }));
-      setLoading(true);
-      try {
-        // إرسال الصورة المضغوطة جداً للـ API
-        const enhancedBase64 = await enhanceImageWithGemini(apiBase64);
-        setState(prev => ({ ...prev, currentStep: 'results', image: enhancedBase64 }));
-      } catch (error: any) {
-        setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
-      } finally {
-        setLoading(false);
-      }
+    if (mode === 'remix') {
+      // Go to style selection instead of immediate processing
+      setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
-      setState(prev => ({ ...prev, currentStep: 'analyzing', image: displayBase64 }));
+      setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
       try {
-        // إرسال الصورة المضغوطة للتحليل
         const analysis = await analyzeImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
@@ -66,6 +65,23 @@ const App: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleStyleSelect = async (style: RemixStyle) => {
+    if (!apiImage) return;
+    
+    setSelectedStyle(style);
+    setState(prev => ({ ...prev, currentStep: 'processing' }));
+    setLoading(true);
+
+    try {
+      const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
+      setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
+    } catch (error: any) {
+      setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,7 +100,9 @@ const App: React.FC = () => {
   const handleReset = () => {
     setState({ currentStep: 'upload', toolMode: null, image: null, analysis: null, error: null });
     setOriginalImage(null);
+    setApiImage(null);
     setCurrentDescription('');
+    setSelectedStyle(null);
   };
 
   return (
@@ -117,18 +135,22 @@ const App: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-xl px-6 py-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-xl">
                   <div className="flex items-center gap-5">
                     <div className={`p-4 rounded-[1.5rem] shadow-lg ${
-                      state.toolMode === 'enhance' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
+                      state.toolMode === 'remix' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
                     }`}>
-                      {state.toolMode === 'enhance' ? <Wand2 className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+                      {state.toolMode === 'remix' ? <Palette className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {state.toolMode === 'enhance' ? 'تحسين لومينا' : 'تحليل لومينا'}
+                        {state.toolMode === 'remix' ? 'إستوديو لومينا' : 'تحليل لومينا'}
                       </h2>
                       <div className="flex items-center gap-2 mt-1">
-                        {['analyzing', 'enhancing'].includes(state.currentStep) ? (
+                        {['analyzing', 'processing'].includes(state.currentStep) ? (
                           <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
                             <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
+                          </span>
+                        ) : state.currentStep === 'style-selection' ? (
+                          <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
+                            <Sparkles className="w-3 h-3" /> بانتظار اختيار النمط
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
@@ -149,14 +171,14 @@ const App: React.FC = () => {
                     <ImageViewer 
                       imageSrc={state.image || originalImage || ''} 
                       originalSrc={originalImage}
-                      isEnhancing={['enhancing'].includes(state.currentStep)}
+                      isEnhancing={['processing'].includes(state.currentStep)}
                     />
                     
                     {state.currentStep === 'results' && !state.error && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <a 
                           href={state.image || ''} 
-                          download="lumina_result.png"
+                          download="lumina_remix.png"
                           className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
                         >
                           <Download className="w-6 h-6" /> تحميل الصورة
@@ -172,6 +194,32 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="space-y-8">
+                    {/* Style Selection Panel */}
+                    {state.currentStep === 'style-selection' && (
+                      <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                          <Palette className="w-5 h-5 text-purple-500" />
+                          اختر نمط التحويل
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          {REMIX_STYLES.map((style) => (
+                            <button
+                              key={style.id}
+                              onClick={() => handleStyleSelect(style)}
+                              className="group relative p-6 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-500/30 transition-all duration-300 text-center flex flex-col items-center gap-3 hover:-translate-y-1 hover:shadow-lg"
+                            >
+                              <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">{style.icon}</span>
+                              <span className="font-bold text-sm text-gray-700 dark:text-gray-200">{style.name}</span>
+                              <div className={`absolute bottom-0 inset-x-0 h-1 rounded-b-2xl ${style.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-6 text-center">
+                          سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل بناءً على النمط المختار.
+                        </p>
+                      </div>
+                    )}
+
                     {state.toolMode === 'analyze' && state.analysis && (
                       <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100">
                         <AnalysisPanel 
@@ -184,12 +232,18 @@ const App: React.FC = () => {
                       </div>
                     )}
                     
-                    {state.toolMode === 'enhance' && state.currentStep === 'results' && !state.error && (
-                      <div className="bg-gradient-to-br from-primary via-blue-700 to-indigo-900 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
-                          <h3 className="text-3xl font-extrabold mb-6">اكتمل التحسين</h3>
-                          <p className="text-lg text-white/80 leading-relaxed font-medium">
-                               تمت معالجة الصورة بنجاح. تم تحسين تفاصيل الإضاءة والحدة بذكاء لتناسب ذوقك.
+                    {state.toolMode === 'remix' && state.currentStep === 'results' && !state.error && (
+                      <div className="bg-gradient-to-br from-purple-600 to-indigo-800 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
+                          <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-3">
+                             <Sparkles className="w-8 h-8 text-yellow-300" />
+                             تمت إعادة التخيل!
+                          </h3>
+                          <p className="text-lg text-white/80 leading-relaxed font-medium mb-4">
+                               تم تحويل صورتك بنجاح بنمط <span className="text-white font-bold bg-white/20 px-2 py-0.5 rounded-lg">{selectedStyle?.name}</span>.
                           </p>
+                          <button onClick={handleReset} className="mt-4 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all border border-white/20">
+                            تجربة نمط آخر
+                          </button>
                       </div>
                     )}
                   </div>

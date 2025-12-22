@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Wand2, Loader2 } from 'lucide-react';
+import { Search, Palette, Loader2, Sparkles } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -21,6 +21,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     let width = img.width;
     let height = img.height;
 
+    // الحفاظ على النسبة
     if (width > height) {
       if (width > maxDim) {
         height *= maxDim / width;
@@ -48,14 +49,11 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        // 1. نسخة العرض (جودة مقبولة للمستخدم - 800 بكسل)
-        const displayBase64 = resizeImage(img, 800, 0.7);
+        // 1. نسخة العرض (جودة عالية للمستخدم)
+        const displayBase64 = resizeImage(img, 1024, 0.8);
 
-        // 2. نسخة الـ API (مضغوطة لضمان السرعة)
-        // نوحد الحجم لـ 512 بكسل للحالتين لأنك ذكرت أن التحليل (الذي كان 512) يعمل جيداً
-        const apiMaxDim = 512;
-        const apiQuality = 0.6;
-        const apiBase64 = resizeImage(img, apiMaxDim, apiQuality);
+        // 2. نسخة الـ API (حجم آمن وموحد 512px)
+        const apiBase64 = resizeImage(img, 512, 0.6);
 
         onImageSelect(displayBase64, apiBase64, mode);
         setIsProcessingLocal(false);
@@ -70,7 +68,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري تحضير وضغط الصورة...</p>
+          <p className="font-bold text-dark dark:text-white">جاري تجهيز الصورة...</p>
         </div>
       )}
 
@@ -79,7 +77,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          حلل وحسن صورك مجاناً عبر متصفحك مباشرة.
+          أدوات احترافية لتحليل الصور وإعادة تخيلها بالذكاء الاصطناعي.
         </p>
       </div>
 
@@ -87,18 +85,18 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <ToolCard 
           id="fileInputAnalyze" 
           title="تحليل الصور" 
-          desc="استخراج النمط والألوان والوصف بدقة عالية." 
+          desc="كشف تفاصيل الصورة، الألوان، النمط، واستخراج وصف دقيق." 
           icon={<Search className="w-8 h-8 text-primary" />}
           colorClass="bg-blue-100 dark:bg-blue-900/30 border-primary"
           onFileSelect={(e) => handleFileInput(e, 'analyze')}
         />
         <ToolCard 
-          id="fileInputEnhance" 
-          title="تحسين الصور" 
-          desc="تعديل الإضاءة والوضوح بلمسة واحدة." 
-          icon={<Wand2 className="w-8 h-8 text-purple-600" />}
+          id="fileInputRemix" 
+          title="إستوديو لومينا" 
+          desc="حول صورك إلى لوحات فنية، أنمي، أو حسّن جودتها بأسلوب واقعي." 
+          icon={<Palette className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
-          onFileSelect={(e) => handleFileInput(e, 'enhance')}
+          onFileSelect={(e) => handleFileInput(e, 'remix')}
         />
       </div>
 
@@ -128,6 +126,9 @@ const ToolCard: React.FC<ToolCardProps> = ({ id, title, desc, icon, colorClass, 
     <input type="file" id={id} className="hidden" accept="image/*" onChange={onFileSelect} />
     <div className={`w-20 h-20 ${colorClass.split(' ')[0]} ${colorClass.split(' ')[1]} rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform shadow-inner`}>
       {icon}
+    </div>
+    <div className="absolute top-6 right-6">
+       {title.includes("إستوديو") && <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />}
     </div>
     <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">{title}</h3>
     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-8">{desc}</p>
