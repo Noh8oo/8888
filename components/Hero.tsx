@@ -23,8 +23,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // Max 1024px is the safest dimension for Gemini API stability and Vercel payload limits
-        const MAX_DIM = 1024; 
+        // تقليل الحجم لضمان التوافق مع Vercel و Flash models
+        const MAX_DIM = 800; 
 
         let width = img.width;
         let height = img.height;
@@ -50,9 +50,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // Use JPEG 0.7 to significantly reduce byte size while keeping visual quality
-        // This prevents 413 Payload Too Large errors on Vercel
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        // استخدام جودة أقل قليلاً (0.6) لضمان بقاء الحجم صغيراً جداً ومناسباً للنماذج السريعة
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
         onImageSelect(compressedBase64, mode);
         setIsProcessingLocal(false);
       };
@@ -64,10 +63,10 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       {isProcessingLocal && (
-        <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center">
+        <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري تحسين الحجم ومعالجة الصورة...</p>
-          <p className="text-xs text-gray-500 mt-2">نعمل على ضغط الملف لضمان استقرار الخدمة</p>
+          <p className="font-bold text-dark dark:text-white">جاري تحسين الصورة للعمل بشكل مجاني...</p>
+          <p className="text-xs text-gray-500 mt-2 max-w-xs leading-relaxed">نقوم بضغط الصورة لضمان استقرار الخدمة وتجنب أخطاء الشبكة على Vercel</p>
         </div>
       )}
 
@@ -76,7 +75,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          تحليل وتحسين صورك باستخدام أحدث تقنيات الذكاء الاصطناعي العالمية.
+          تحليل وتحسين صورك مجاناً وبسرعة فائقة.
         </p>
       </div>
 
@@ -84,7 +83,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <ToolCard 
           id="fileInputAnalyze" 
           title="تحليل الصور" 
-          desc="استخراج البيانات، الألوان، والوصف العميق بذكاء خارق." 
+          desc="استخراج البيانات والوصف بذكاء اصطناعي فائق." 
           icon={<Search className="w-8 h-8 text-primary" />}
           colorClass="bg-blue-100 dark:bg-blue-900/30 border-primary"
           onFileSelect={(e) => handleFileInput(e, 'analyze')}
@@ -92,7 +91,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         <ToolCard 
           id="fileInputEnhance" 
           title="تحسين الجودة" 
-          desc="رفع الدقة، إزالة التشويش وترميم التفاصيل التالفة فوراً." 
+          desc="إصلاح الإضاءة والحدة وتحسين التفاصيل فوراً." 
           icon={<Wand2 className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
           onFileSelect={(e) => handleFileInput(e, 'enhance')}
