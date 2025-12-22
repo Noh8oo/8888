@@ -11,25 +11,22 @@ const cleanBase64Data = (base64: string): string => {
   return base64.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, '');
 };
 
+const getAI = () => {
+  // استخدام المفتاح الموجود في البيئة حصراً
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
+
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3-flash-preview", // نموذج مجاني وسريع
     contents: {
       parts: [
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: cleanBase64,
-          },
-        },
-        {
-          text: `قم بتحليل هذه الصورة وقدم مخرجات منظمة بصيغة JSON باللغة العربية. 
-          استخرج 5 ألوان مهيمنة (hex). صف النمط الفني. حدد نوع التخطيط مع شرح. حدد زاوية الكاميرا مع شرح. استخرج العناصر. اكتب وصفاً نصياً (Prompt) دقيقاً.`,
-        },
+        { inlineData: { mimeType, data: cleanBase64 } },
+        { text: "حلل الصورة واستخرج الألوان والنمط والعناصر والتخطيط وزاوية الكاميرا والوصف (Prompt) باللغة العربية بصيغة JSON." }
       ],
     },
     config: {
@@ -54,29 +51,22 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   try {
     return JSON.parse(response.text || "{}") as ImageAnalysis;
   } catch (e) {
-    throw new Error("فشل في تحليل البيانات المستلمة");
+    throw new Error("فشل تحليل البيانات، يرجى المحاولة مرة أخرى.");
   }
 };
 
 export const enhanceImageWithGemini = async (base64Image: string): Promise<string> => {
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
 
-  // Use gemini-2.5-flash-image which is the standard for image editing tasks
+  // استخدام النموذج المجاني المخصص للصور gemini-2.5-flash-image
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
-        {
-          inlineData: {
-            data: cleanBase64,
-            mimeType: mimeType,
-          },
-        },
-        {
-          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Strictly maintain the original colors and geometry.',
-        },
+        { inlineData: { data: cleanBase64, mimeType } },
+        { text: 'Improve this image: upscale it slightly, sharpen the details, fix the lighting, and remove digital noise while keeping it identical to the original. Return only the enhanced image data.' }
       ],
     },
   });
@@ -89,25 +79,25 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
     }
   }
 
-  throw new Error("لم يتم إرجاع أي صورة. يرجى التأكد من صلاحية مفتاح الـ API وحجم الصورة.");
+  throw new Error("لم نتمكن من تحسين الصورة حالياً، جرب صورة أخرى.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `لديك وصف لصورة: "${originalDescription}". المطلوب: تعديله بناءً على: "${userInstruction}". أجب بالنص الجديد فقط.`,
+    contents: `عدل هذا الوصف: "${originalDescription}" بناءً على طلب المستخدم: "${userInstruction}". أجب بالوصف الجديد فقط باللغة العربية.`,
   });
   return response.text || originalDescription;
 };
 
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     history: history,
     config: {
-      systemInstruction: "أنت مساعد ذكي متخصص في التصميم وتحليل الصور. أجب دائماً باللغة العربية وبأسلوب مهني وودود."
+      systemInstruction: "أنت مساعد ذكي في لومينا، خبير في تحليل الصور والتصميم. أجب دائماً بالعربية وبأسلوب ودود ومفيد."
     }
   });
   const response = await chat.sendMessage({ message: newMessage });
