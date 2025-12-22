@@ -2,10 +2,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-// Always initialize a new instance within the function to ensure up-to-date API keys and configurations.
+const getMimeType = (base64: string): string => {
+  const match = base64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+  return match ? match[1] : 'image/jpeg';
+};
+
+const cleanBase64Data = (base64: string): string => {
+  return base64.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, '');
+};
+
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-  // Using a fresh instance for each request as per guidelines.
+  const mimeType = getMimeType(base64Image);
+  const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
@@ -14,18 +22,13 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       parts: [
         {
           inlineData: {
-            mimeType: "image/jpeg",
+            mimeType: mimeType,
             data: cleanBase64,
           },
         },
         {
-          text: `قم بتحليل هذه الصورة وقدم مخرجات منظمة بصيغة JSON.
-          استخرج 5 ألوان مهيمنة (رموز hex).
-          صف النمط الفني (مثلاً: حديث بسيط، كلاسيكي، إلخ) باللغة العربية.
-          حدد نوع التكوين/التخطيط (مثلاً: قاعدة الأثلاث) وقدم شرحاً تفصيلياً عنه باللغة العربية.
-          حدد زاوية الكاميرا (مثلاً: منظر أمامي) وقدم شرحاً تفصيلياً عنها باللغة العربية.
-          استخرج قائمة بأهم العناصر والكائنات (Objects) الظاهرة في الصورة باللغة العربية.
-          اكتب وصفاً نصياً دقيقاً (Prompt) باللغة العربية يمكن استخدامه لإعادة إنشاء هذه الصورة باستخدام الذكاء الاصطناعي.`,
+          text: `قم بتحليل هذه الصورة وقدم مخرجات منظمة بصيغة JSON باللغة العربية. 
+          استخرج 5 ألوان مهيمنة (hex). صف النمط الفني. حدد نوع التخطيط مع شرح. حدد زاوية الكاميرا مع شرح. استخرج العناصر. اكتب وصفاً نصياً (Prompt) دقيقاً.`,
         },
       ],
     },
@@ -34,19 +37,13 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          colors: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
+          colors: { type: Type.ARRAY, items: { type: Type.STRING } },
           style: { type: Type.STRING },
           layout: { type: Type.STRING },
           layoutDetail: { type: Type.STRING },
           view: { type: Type.STRING },
           viewDetail: { type: Type.STRING },
-          objects: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING }
-          },
+          objects: { type: Type.ARRAY, items: { type: Type.STRING } },
           prompt: { type: Type.STRING },
         },
         required: ["colors", "style", "layout", "layoutDetail", "view", "viewDetail", "objects", "prompt"],
@@ -54,17 +51,16 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     },
   });
 
-  const jsonText = response.text || "{}";
   try {
-    return JSON.parse(jsonText) as ImageAnalysis;
+    return JSON.parse(response.text || "{}") as ImageAnalysis;
   } catch (e) {
-    throw new Error("Analysis failed");
+    throw new Error("فشل في تحليل البيانات المستلمة");
   }
 };
 
 export const enhanceImageWithGemini = async (base64Image: string): Promise<string> => {
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-  // Using a fresh instance for each request as per guidelines.
+  const mimeType = getMimeType(base64Image);
+  const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
@@ -74,11 +70,11 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         {
           inlineData: {
             data: cleanBase64,
-            mimeType: 'image/jpeg',
+            mimeType: mimeType,
           },
         },
         {
-          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Output a high-fidelity, professional version while strictly maintaining the original colors, content, and geometry.',
+          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Output a high-fidelity, professional version while strictly maintaining the original colors and geometry.',
         },
       ],
     },
@@ -92,12 +88,12 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
     }
   }
 
-  throw new Error("No image was returned");
+  throw new Error("لم يتم إرجاع أي صورة من الخادم");
 };
 
 export const transformImageWithGemini = async (base64Image: string, styleInstruction: string): Promise<string> => {
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-  // Using a fresh instance for each request as per guidelines.
+  const mimeType = getMimeType(base64Image);
+  const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
@@ -107,11 +103,11 @@ export const transformImageWithGemini = async (base64Image: string, styleInstruc
         {
           inlineData: {
             data: cleanBase64,
-            mimeType: 'image/jpeg',
+            mimeType: mimeType,
           },
         },
         {
-          text: `Transform this image into the following style: ${styleInstruction}. Maintain the overall composition and recognizable subjects but completely change the artistic rendering to fit the requested style. High quality output.`,
+          text: `Transform this image into the following style: ${styleInstruction}. Maintain composition but change rendering style.`,
         },
       ],
     },
@@ -125,25 +121,19 @@ export const transformImageWithGemini = async (base64Image: string, styleInstruc
     }
   }
 
-  throw new Error("Transformation failed");
+  throw new Error("فشلت عملية التحويل الفني");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
-  try {
-    // Using a fresh instance for each request as per guidelines.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `لديك وصف لصورة: "${originalDescription}". المطلوب: تعديله بناءً على: "${userInstruction}". أجب بالنص الجديد فقط.`,
-    });
-    return response.text || originalDescription;
-  } catch (error) {
-    throw error;
-  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `لديك وصف لصورة: "${originalDescription}". المطلوب: تعديله بناءً على: "${userInstruction}". أجب بالنص الجديد فقط.`,
+  });
+  return response.text || originalDescription;
 };
 
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
-  // Using a fresh instance for each request as per guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",

@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { UploadCloud, Image as ImageIcon, Sparkles, Wand2, Search, Palette } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, Wand2, Search, Palette, Loader2 } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -10,6 +10,7 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolMode>(null);
+  const [isProcessingLocal, setIsProcessingLocal] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -36,17 +37,54 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   };
 
   const processFile = (file: File, mode: ToolMode) => {
+    setIsProcessingLocal(true);
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (e.target?.result) {
-        onImageSelect(e.target.result as string, mode);
-      }
+      const img = new Image();
+      img.onload = () => {
+        // Simple resizing logic for mobile photos
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1600; // Optimal for Gemini while keeping quality
+        const MAX_HEIGHT = 1600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Export as high quality JPEG to reduce payload size
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+        onImageSelect(compressedBase64, mode);
+        setIsProcessingLocal(false);
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
 
   return (
     <div className="w-full max-w-6xl mx-auto py-8 px-4">
+      {isProcessingLocal && (
+        <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+          <p className="font-bold text-dark dark:text-white">جاري تجهيز الصورة...</p>
+        </div>
+      )}
+
       <div className="text-center mb-12 space-y-4">
         <h1 className="font-display text-4xl md:text-5xl font-bold text-dark dark:text-white leading-tight">
           مختبر <span className="text-primary">لومينا</span> للذكاء الاصطناعي
