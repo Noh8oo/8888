@@ -7,12 +7,10 @@ const getMimeType = (base64: string): string => {
   return match ? match[1] : 'image/jpeg';
 };
 
-// دالة تنظيف أكثر قوة تضمن إزالة أي ترويسة
+// دالة تنظيف صارمة لضمان قبول الصورة
 const cleanBase64Data = (base64: string): string => {
-  if (base64.includes(',')) {
-    return base64.split(',')[1];
-  }
-  return base64;
+  // إزالة أي بادئة data uri باستخدام replace لضمان النص النظيف فقط
+  return base64.replace(/^data:image\/\w+;base64,/, '');
 };
 
 const validateApiKey = () => {
@@ -24,11 +22,8 @@ const validateApiKey = () => {
 };
 
 const checkPayloadSize = (base64: string) => {
-  // حساب تقريبي للحجم بالبايت
   const sizeInBytes = (base64.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
-  
-  // رفع الحد قليلاً لكن الضغط في Hero.tsx سيضمن أننا أقل بكثير
   if (sizeInMB > 9) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
@@ -52,7 +47,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", // موديل سريع جداً للتحليل
+      model: "gemini-2.5-flash", 
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
@@ -86,14 +81,14 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
     if (e.message.includes("413") || e.message.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
     if (e.message.includes("429") || e.message.includes("Quota")) throw new Error("ERROR_QUOTA_EXCEEDED");
-    if (e.message.includes("Failed to fetch") || e.message.includes("Network")) throw new Error("ERROR_NETWORK");
-    if (e instanceof SyntaxError) throw new Error("ERROR_GENERATION_FAILED");
     throw new Error(`ERROR_ANALYSIS_FAILED: ${e.message}`);
   }
 };
 
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
   validateApiKey();
+  
+  // 1. تنظيف الـ Base64 بشكل صارم
   const cleanBase64 = cleanBase64Data(base64Image);
   checkPayloadSize(cleanBase64); 
   
@@ -101,12 +96,14 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    // استخدام الموديل المستقر المخصص للصور
+    // 2. استخدام الموديل الصحيح للصور
+    // gemini-2.5-flash-image هو الاسم المعياري للموديل gemini-2.5-flash-image-preview-09-2025
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image', 
       contents: {
         parts: [
-          { inlineData: { data: cleanBase64, mimeType } }, // الصورة أولاً (مهم جداً)
+          // 3. الترتيب مهم جداً: الصورة أولاً ثم النص
+          { inlineData: { data: cleanBase64, mimeType } }, 
           { text: stylePrompt },
         ],
       },
@@ -132,12 +129,9 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
     if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
+    if (e.message.includes("not found") || e.message.includes("404")) throw new Error("ERROR_MODEL_NOT_FOUND");
     
-    if (e.message.includes("not found") || e.message.includes("404")) {
-         throw new Error("ERROR_MODEL_NOT_FOUND");
-    }
-    
-    throw new Error("ERROR_GENERATION_FAILED");
+    throw new Error(`ERROR_GENERATION_FAILED: ${e.message}`);
   }
 };
 
