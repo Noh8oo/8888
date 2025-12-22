@@ -23,8 +23,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // تقليل الحجم لـ 640 بكسل لضمان أقصى درجات التوافق مع الخطة المجانية
-        const MAX_DIM = 640; 
+        // تقليل الحجم لـ 512 بكسل لضمان أقصى درجات الاستقرار مع الخطة المجانية
+        const MAX_DIM = 512; 
 
         let width = img.width;
         let height = img.height;
@@ -50,8 +50,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // استخدام جودة 0.7 لتوازن ممتاز بين الحجم والوضوح
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        // جودة 0.6 توفر حجم ملف صغير جداً وسرعة معالجة عالية
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
         onImageSelect(compressedBase64, mode);
         setIsProcessingLocal(false);
       };
@@ -65,8 +65,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري تحضير الصورة للخطة المجانية...</p>
-          <p className="text-xs text-gray-500 mt-2 max-w-xs leading-relaxed">نقوم بضغط الصورة لضمان استقرار المعالجة وتوفير استهلاك البيانات.</p>
+          <p className="font-bold text-dark dark:text-white">جاري تحضير الصورة...</p>
         </div>
       )}
 
@@ -90,7 +89,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         />
         <ToolCard 
           id="fileInputEnhance" 
-          title="تحسين لومينا" 
+          title="تحسين الصور" 
           desc="تعديل الإضاءة والوضوح بلمسة واحدة." 
           icon={<Wand2 className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
@@ -100,7 +99,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
 
       <div className="bg-gray-50 dark:bg-gray-800/30 rounded-[2rem] p-8 border border-gray-100 dark:border-gray-700 text-center">
          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            تم التطوير بواسطة <strong>نهاد محمد</strong> • متوافق مع الخطة المجانية
+            تم التطوير بواسطة <strong>نهاد محمد</strong> • يدعم المفتاح المجاني
          </p>
       </div>
     </div>

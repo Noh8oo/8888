@@ -14,7 +14,7 @@ const cleanBase64Data = (base64: string): string => {
 const validateApiKey = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey.trim() === '' || apiKey === 'undefined') {
-    throw new Error("المفتاح غير موجود في الإعدادات.");
+    throw new Error("المفتاح غير معد بشكل صحيح في إعدادات Vercel.");
   }
   return apiKey;
 };
@@ -23,7 +23,6 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   const apiKey = validateApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  
   const ai = new GoogleGenAI({ apiKey });
 
   try {
@@ -32,7 +31,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
-          { text: "حلل الصورة واستخرج: الألوان، النمط، العناصر، التخطيط، والوصف (Prompt) بالعربية بصيغة JSON." }
+          { text: "حلل الصورة واستخرج: الألوان (HEX)، النمط، العناصر، التخطيط، والوصف (Prompt) بالعربية بصيغة JSON." }
         ],
       },
       config: {
@@ -54,12 +53,11 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
     });
 
-    if (!response.text) throw new Error("لم يتم استلام رد.");
+    if (!response.text) throw new Error("لم يتم استلام رد من الذكاء الاصطناعي.");
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
-    console.error(e);
-    if (e.message.includes("429")) throw new Error("تم الوصول لحد الاستهلاك المجاني. انتظر قليلاً وأعد المحاولة.");
-    throw new Error("فشل التحليل. يرجى تجربة صورة أخرى أو التحقق من المفتاح.");
+    if (e.message?.includes("429")) throw new Error("الخطة المجانية مشغولة حالياً، انتظر دقيقة وأعد المحاولة.");
+    throw new Error("حدث خطأ في التحليل. يرجى تجربة صورة أخرى.");
   }
 };
 
@@ -70,25 +68,34 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const ai = new GoogleGenAI({ apiKey });
 
   try {
+    // استخدمنا gemini-3-pro-image-preview لأنه أقوى وأكثر توافقاً مع Vercel
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'Improve lighting and sharpness of this image.' }
+          { text: 'Improve this photo: fix colors, lighting, and enhance details to look high-quality and professional.' }
         ],
       },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
     });
 
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
-        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+        if (part.inlineData) {
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
       }
     }
-    throw new Error("فشل التحسين.");
+    throw new Error("لم يقم النموذج بتوليد صورة محسنة.");
   } catch (e: any) {
-    throw new Error("حدث خطأ أثناء معالجة الصورة. الخطة المجانية قد تكون مشغولة.");
+    console.error("Enhance Error:", e);
+    throw new Error("فشل تحسين الصورة. قد يكون السبب حجم الملف أو قيود الخطة المجانية.");
   }
 };
 
@@ -97,7 +104,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `عدل الوصف: "${originalDescription}" بناءً على: "${userInstruction}". أجب بالعربية فقط.`,
+    contents: `عدل الوصف التالي: "${originalDescription}" بناءً على: "${userInstruction}". أخرج النص المعدل بالعربية فقط.`,
   });
   return response.text || originalDescription;
 };
@@ -108,7 +115,7 @@ export const chatWithGemini = async (history: { role: string; parts: { text: str
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     history: history,
-    config: { systemInstruction: "أنت مساعد ذكي في لومينا. أجب بالعربية دائماً." }
+    config: { systemInstruction: "أنت مساعد لومينا الذكي. أجب دائماً بالعربية وبطريقة ودودة." }
   });
   const response = await chat.sendMessage({ message: newMessage });
   return response.text || "";

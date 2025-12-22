@@ -93,27 +93,20 @@ const App: React.FC = () => {
         {state.currentStep !== 'upload' && (
           <div className="max-w-[1600px] mx-auto animate-fade-in">
             {state.error ? (
-              <div className="max-w-xl mx-auto py-20 text-center space-y-8 bg-white dark:bg-gray-800 rounded-[3rem] p-10 border border-red-50 dark:border-red-900/10 shadow-2xl">
-                <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-10 h-10 text-red-500" />
+              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 border border-gray-100 dark:border-gray-700 shadow-2xl">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
+                  <AlertCircle className="w-8 h-8" />
                 </div>
-                
-                <div className="space-y-4">
-                  <h3 className="text-2xl font-bold">عذراً، حدث خطأ</h3>
-                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
-                    {state.error}
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <button 
-                    onClick={handleReset} 
-                    className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all"
-                  >
-                    العودة والمحاولة مرة أخرى
-                  </button>
-                  <p className="text-[10px] text-gray-400">تأكد من استخدام صور بحجم معقول للمفتاح المجاني.</p>
-                </div>
+                <h3 className="text-xl font-bold">عذراً، لم تنجح العملية</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto leading-relaxed">
+                  {state.error}
+                </p>
+                <button 
+                  onClick={handleReset} 
+                  className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold hover:brightness-110 active:scale-95 transition-all"
+                >
+                  العودة والمحاولة مرة أخرى
+                </button>
               </div>
             ) : (
               <>
@@ -126,16 +119,16 @@ const App: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {state.toolMode === 'enhance' ? 'تحسين لومينا الذكي' : 'تحليل لومينا الذكي'}
+                        {state.toolMode === 'enhance' ? 'تحسين الصورة' : 'تحليل لومينا'}
                       </h2>
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'enhancing'].includes(state.currentStep) ? (
                           <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
+                            <RefreshCw className="w-3 h-3 animate-spin" /> جاري العمل...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
-                            <Check className="w-3 h-3" /> تم بنجاح
+                            <Check className="w-3 h-3" /> جاهز
                           </span>
                         )}
                       </div>
@@ -143,7 +136,7 @@ const App: React.FC = () => {
                   </div>
                   
                   <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm border border-gray-100 dark:border-gray-600 flex items-center gap-3 shadow-md hover:scale-105 active:scale-95 transition-all">
-                    <ArrowLeft className="w-5 h-5" /> العودة للبداية
+                    <ArrowLeft className="w-5 h-5" /> العودة للرئيسية
                   </button>
                 </div>
 
@@ -155,14 +148,14 @@ const App: React.FC = () => {
                       isEnhancing={['enhancing'].includes(state.currentStep)}
                     />
                     
-                    {state.currentStep === 'results' && (
+                    {state.currentStep === 'results' && !state.error && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <a 
                           href={state.image || ''} 
                           download="lumina_result.png"
                           className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl shadow-primary/30 hover:brightness-110 active:scale-95 transition-all"
                         >
-                          <Download className="w-6 h-6" /> حفظ الصورة
+                          <Download className="w-6 h-6" /> تحميل الصورة
                         </a>
                         <button 
                           onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة معالجة بالذكاء الاصطناعي', url: window.location.href })}
@@ -175,7 +168,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="space-y-8">
-                    {state.toolMode === 'analyze' && (
+                    {state.toolMode === 'analyze' && state.analysis && (
                       <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700">
                         <AnalysisPanel 
                           analysis={state.analysis} 
@@ -187,11 +180,11 @@ const App: React.FC = () => {
                       </div>
                     )}
                     
-                    {state.toolMode === 'enhance' && state.currentStep === 'results' && (
+                    {state.toolMode === 'enhance' && state.currentStep === 'results' && !state.error && (
                       <div className="bg-gradient-to-br from-primary via-blue-700 to-indigo-900 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
                           <h3 className="text-3xl font-extrabold mb-6">اكتمل التحسين</h3>
                           <p className="text-lg text-white/80 leading-relaxed font-medium">
-                               تمت معالجة الصورة بنجاح. تم تحسين تفاصيل الإضاءة والحدة بذكاء.
+                               تمت معالجة الصورة بنجاح. تم تحسين تفاصيل الإضاءة والحدة بذكاء لتناسب ذوقك.
                           </p>
                       </div>
                     )}
