@@ -23,8 +23,9 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // للتحسين نستخدم 400 بكسل كحد أقصى لضمان استقرار Vercel
-        const MAX_DIM = mode === 'enhance' ? 400 : 600; 
+        // تصغير الصورة لـ 256 بكسل فقط عند التحسين لضمان عملها على Vercel
+        // التحليل يبقى 512 بكسل لأنه لا يعيد صورة فلا مشكلة في الحجم
+        const MAX_DIM = mode === 'enhance' ? 256 : 512; 
 
         let width = img.width;
         let height = img.height;
@@ -50,8 +51,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // جودة 0.5 توفر توازناً مثالياً بين الحجم والوضوح
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+        // جودة منخفضة قليلاً لتقليل حجم الـ Payload لـ Vercel
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
         onImageSelect(compressedBase64, mode);
         setIsProcessingLocal(false);
       };
@@ -65,7 +66,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري معالجة الصورة محلياً...</p>
+          <p className="font-bold text-dark dark:text-white">جاري معالجة الصورة...</p>
         </div>
       )}
 

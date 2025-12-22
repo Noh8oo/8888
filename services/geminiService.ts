@@ -31,7 +31,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
-          { text: "Analyze image: colors (HEX), style, objects, and a detailed prompt in Arabic. Output as JSON." }
+          { text: "Analyze image and provide output as JSON with: colors (HEX), style, objects, and an Arabic prompt." }
         ],
       },
       config: {
@@ -53,11 +53,10 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
     });
 
-    if (!response.text) throw new Error("EMPTY_RESPONSE");
+    if (!response.text) throw new Error("EMPTY");
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
-    console.error("Analysis Error:", e);
-    throw new Error("فشل في تحليل الصورة. يرجى المحاولة مرة أخرى.");
+    throw new Error("فشل تحليل الصورة. حاول مجدداً.");
   }
 };
 
@@ -68,14 +67,17 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // استخدام نموذج gemini-2.5-flash-image لأنه الأسرع والأكثر استقراراً في المهام البسيطة
+    // استخدام فلاش 2.5 لأنه الأسرع لتجنب Timeout الخاص بـ Vercel
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'enhance image' } // أمر بسيط جداً لتجنب أي تعقيدات أو فلاتر أمان
+          { text: 'enhance' } // أمر بسيط جداً لتقليل وقت المعالجة
         ],
+      },
+      config: {
+        imageConfig: { aspectRatio: "1:1" }
       }
     });
 
@@ -87,14 +89,10 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         }
       }
     }
-    throw new Error("NO_IMAGE_RETURNED");
+    throw new Error("NO_IMAGE");
   } catch (e: any) {
-    console.error("Enhance Error Details:", e);
-    // رسالة خطأ ذكية للمستخدم
-    if (e.message?.includes("504") || e.message?.includes("fetch")) {
-      throw new Error("تأخر الرد من الخادم (Vercel Timeout). جرب صورة أصغر.");
-    }
-    throw new Error("نموذج التحسين غير مدعوم حالياً في منطقتك الجغرافية على Vercel.");
+    console.error("Vercel Gemini Error:", e);
+    throw new Error("تعذر التحسين. خوادم Vercel لا تستجيب للصور الكبيرة، يرجى تجربة صورة أصغر جداً.");
   }
 };
 
@@ -103,7 +101,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Modify description: "${originalDescription}" based on: "${userInstruction}". Arabic output only.`,
+    contents: `Modify this: "${originalDescription}" based on: "${userInstruction}". Arabic only.`,
   });
   return response.text || originalDescription;
 };
@@ -114,7 +112,7 @@ export const chatWithGemini = async (history: { role: string; parts: { text: str
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     history: history,
-    config: { systemInstruction: "أنت مساعد لومينا، خبير تصميم. أجب بالعربية دائماً." }
+    config: { systemInstruction: "أنت مساعد لومينا. أجب بالعربية باختصار." }
   });
   const response = await chat.sendMessage({ message: newMessage });
   return response.text || "";
