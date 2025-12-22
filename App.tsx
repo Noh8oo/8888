@@ -84,22 +84,22 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300 font-sans selection:bg-primary/20">
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300 font-sans">
       <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} highlightSupport={state.currentStep === 'results'} />
       
       <main className="container mx-auto px-4 py-6 md:py-10">
         {state.currentStep === 'upload' && <Hero onImageSelect={handleImageSelect} />}
 
         {state.currentStep !== 'upload' && (
-          <div className="max-w-[1600px] mx-auto animate-fade-in">
+          <div className="max-w-[1600px] mx-auto">
             {state.error ? (
-              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 border border-gray-100 dark:border-gray-700 shadow-2xl">
+              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700">
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold">عذراً، لم تنجح العملية</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto leading-relaxed">
-                  {state.error}
+                <h3 className="text-xl font-bold">عذراً، تعذر إكمال الطلب</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed px-4">
+                  {state.error === "API_KEY_MISSING" ? "خطأ في إعدادات API Key بموقع Vercel." : state.error}
                 </p>
                 <button 
                   onClick={handleReset} 
@@ -111,7 +111,7 @@ const App: React.FC = () => {
             ) : (
               <>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-xl px-6 py-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-xl">
-                  <div className="flex items-center gap-5 w-full sm:w-auto">
+                  <div className="flex items-center gap-5">
                     <div className={`p-4 rounded-[1.5rem] shadow-lg ${
                       state.toolMode === 'enhance' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
                     }`}>
@@ -119,16 +119,16 @@ const App: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {state.toolMode === 'enhance' ? 'تحسين الصورة' : 'تحليل لومينا'}
+                        {state.toolMode === 'enhance' ? 'تحسين لومينا' : 'تحليل لومينا'}
                       </h2>
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'enhancing'].includes(state.currentStep) ? (
                           <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> جاري العمل...
+                            <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
-                            <Check className="w-3 h-3" /> جاهز
+                            <Check className="w-3 h-3" /> تم بنجاح
                           </span>
                         )}
                       </div>
@@ -136,7 +136,7 @@ const App: React.FC = () => {
                   </div>
                   
                   <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm border border-gray-100 dark:border-gray-600 flex items-center gap-3 shadow-md hover:scale-105 active:scale-95 transition-all">
-                    <ArrowLeft className="w-5 h-5" /> العودة للرئيسية
+                    <ArrowLeft className="w-5 h-5" /> العودة للبداية
                   </button>
                 </div>
 
@@ -153,13 +153,13 @@ const App: React.FC = () => {
                         <a 
                           href={state.image || ''} 
                           download="lumina_result.png"
-                          className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl shadow-primary/30 hover:brightness-110 active:scale-95 transition-all"
+                          className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
                         >
                           <Download className="w-6 h-6" /> تحميل الصورة
                         </a>
                         <button 
                           onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة معالجة بالذكاء الاصطناعي', url: window.location.href })}
-                          className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 dark:border-gray-700 active:scale-95 transition-all"
+                          className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 transition-all"
                         >
                           <Share2 className="w-6 h-6" /> مشاركة
                         </button>
@@ -169,7 +169,7 @@ const App: React.FC = () => {
 
                   <div className="space-y-8">
                     {state.toolMode === 'analyze' && state.analysis && (
-                      <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700">
+                      <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100">
                         <AnalysisPanel 
                           analysis={state.analysis} 
                           currentDescription={currentDescription}

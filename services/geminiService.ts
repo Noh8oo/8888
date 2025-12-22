@@ -14,7 +14,7 @@ const cleanBase64Data = (base64: string): string => {
 const validateApiKey = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey.trim() === '' || apiKey === 'undefined') {
-    throw new Error("المفتاح غير معد بشكل صحيح في إعدادات Vercel.");
+    throw new Error("API_KEY_MISSING");
   }
   return apiKey;
 };
@@ -31,7 +31,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
-          { text: "حلل الصورة واستخرج: الألوان (HEX)، النمط، العناصر، التخطيط، والوصف (Prompt) بالعربية بصيغة JSON." }
+          { text: "Analyze image: colors (HEX), style, objects, and a detailed prompt in Arabic. Output as JSON." }
         ],
       },
       config: {
@@ -53,11 +53,11 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
     });
 
-    if (!response.text) throw new Error("لم يتم استلام رد من الذكاء الاصطناعي.");
+    if (!response.text) throw new Error("EMPTY_RESPONSE");
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
-    if (e.message?.includes("429")) throw new Error("الخطة المجانية مشغولة حالياً، انتظر دقيقة وأعد المحاولة.");
-    throw new Error("حدث خطأ في التحليل. يرجى تجربة صورة أخرى.");
+    console.error("Analysis Error:", e);
+    throw new Error("فشل في تحليل الصورة. يرجى المحاولة مرة أخرى.");
   }
 };
 
@@ -68,19 +68,14 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // استخدمنا gemini-3-pro-image-preview لأنه أقوى وأكثر توافقاً مع Vercel
+    // استخدام نموذج gemini-2.5-flash-image لأنه الأسرع والأكثر استقراراً في المهام البسيطة
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: 'Improve this photo: fix colors, lighting, and enhance details to look high-quality and professional.' }
+          { text: 'enhance image' } // أمر بسيط جداً لتجنب أي تعقيدات أو فلاتر أمان
         ],
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1"
-        }
       }
     });
 
@@ -92,10 +87,14 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
         }
       }
     }
-    throw new Error("لم يقم النموذج بتوليد صورة محسنة.");
+    throw new Error("NO_IMAGE_RETURNED");
   } catch (e: any) {
-    console.error("Enhance Error:", e);
-    throw new Error("فشل تحسين الصورة. قد يكون السبب حجم الملف أو قيود الخطة المجانية.");
+    console.error("Enhance Error Details:", e);
+    // رسالة خطأ ذكية للمستخدم
+    if (e.message?.includes("504") || e.message?.includes("fetch")) {
+      throw new Error("تأخر الرد من الخادم (Vercel Timeout). جرب صورة أصغر.");
+    }
+    throw new Error("نموذج التحسين غير مدعوم حالياً في منطقتك الجغرافية على Vercel.");
   }
 };
 
@@ -104,7 +103,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `عدل الوصف التالي: "${originalDescription}" بناءً على: "${userInstruction}". أخرج النص المعدل بالعربية فقط.`,
+    contents: `Modify description: "${originalDescription}" based on: "${userInstruction}". Arabic output only.`,
   });
   return response.text || originalDescription;
 };
@@ -115,7 +114,7 @@ export const chatWithGemini = async (history: { role: string; parts: { text: str
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     history: history,
-    config: { systemInstruction: "أنت مساعد لومينا الذكي. أجب دائماً بالعربية وبطريقة ودودة." }
+    config: { systemInstruction: "أنت مساعد لومينا، خبير تصميم. أجب بالعربية دائماً." }
   });
   const response = await chat.sendMessage({ message: newMessage });
   return response.text || "";

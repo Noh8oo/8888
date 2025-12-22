@@ -23,8 +23,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // تقليل الحجم لـ 512 بكسل لضمان أقصى درجات الاستقرار مع الخطة المجانية
-        const MAX_DIM = 512; 
+        // للتحسين نستخدم 400 بكسل كحد أقصى لضمان استقرار Vercel
+        const MAX_DIM = mode === 'enhance' ? 400 : 600; 
 
         let width = img.width;
         let height = img.height;
@@ -50,8 +50,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // جودة 0.6 توفر حجم ملف صغير جداً وسرعة معالجة عالية
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        // جودة 0.5 توفر توازناً مثالياً بين الحجم والوضوح
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
         onImageSelect(compressedBase64, mode);
         setIsProcessingLocal(false);
       };
@@ -65,7 +65,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white">جاري تحضير الصورة...</p>
+          <p className="font-bold text-dark dark:text-white">جاري معالجة الصورة محلياً...</p>
         </div>
       )}
 
@@ -74,7 +74,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          حلل وحسن صورك مجاناً وبأحدث تقنيات Google Gemini.
+          حلل وحسن صورك مجاناً عبر متصفحك مباشرة.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
 
       <div className="bg-gray-50 dark:bg-gray-800/30 rounded-[2rem] p-8 border border-gray-100 dark:border-gray-700 text-center">
          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            تم التطوير بواسطة <strong>نهاد محمد</strong> • يدعم المفتاح المجاني
+            تم التطوير بواسطة <strong>نهاد محمد</strong> • يفضل استخدام صور متوسطة الحجم
          </p>
       </div>
     </div>
@@ -127,7 +127,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ id, title, desc, icon, colorClass, 
     <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">{title}</h3>
     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-8">{desc}</p>
     <div className="mt-auto px-10 py-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-xs font-bold text-gray-500 dark:text-gray-400 group-hover:bg-primary group-hover:text-white transition-colors">
-      اختر صورة للبدء
+      اضغط هنا للاختيار
     </div>
   </div>
 );
