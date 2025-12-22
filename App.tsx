@@ -33,6 +33,7 @@ const App: React.FC = () => {
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
+  const [longProcessTip, setLongProcessTip] = useState(false);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -41,6 +42,18 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // إظهار رسالة "العملية تأخذ وقتاً" بعد 8 ثواني من التحميل
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (loading) {
+      setLongProcessTip(false);
+      timer = setTimeout(() => setLongProcessTip(true), 8000);
+    } else {
+      setLongProcessTip(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
@@ -103,15 +116,15 @@ const App: React.FC = () => {
     setApiImage(null);
     setCurrentDescription('');
     setSelectedStyle(null);
+    setLoading(false);
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API.";
-    if (errorMsg.includes("REJECTED_SAFETY")) return "عذراً، رفض النموذج معالجة الصورة لأسباب تتعلق بسياسات الأمان (Safety Filters).";
-    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة في الوقت الحالي. الخوادم مشغولة، يرجى المحاولة بعد قليل.";
-    if (errorMsg.includes("400")) return "طلب غير صالح. قد تكون الصورة معقدة جداً للنموذج.";
-    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً. يرجى الانتظار دقيقة والمحاولة.";
-    return "حدث خطأ غير متوقع أثناء الاتصال بالخادم.";
+    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel.";
+    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
+    if (errorMsg.includes("400")) return "تعذر معالجة الطلب. يرجى تجربة صورة مختلفة أو نمط آخر.";
+    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
+    return "حدث خطأ غير متوقع أثناء المعالجة.";
   };
 
   return (
@@ -128,16 +141,11 @@ const App: React.FC = () => {
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">نأسف، لم تكتمل العملية</h3>
+                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">عذراً، لم تكتمل العملية</h3>
                 <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
                     {getFriendlyErrorMessage(state.error)}
                   </p>
-                  {state.error.includes("API_KEY_MISSING") && (
-                     <div className="mt-4 p-3 bg-white dark:bg-black/20 rounded-lg text-xs text-left font-mono text-gray-500" dir="ltr">
-                        Ensure VITE_API_KEY is set in Vercel settings.
-                     </div>
-                  )}
                 </div>
                 <button 
                   onClick={handleReset} 
@@ -161,10 +169,17 @@ const App: React.FC = () => {
                       </h2>
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'processing'].includes(state.currentStep) ? (
-                          <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> 
-                            {state.toolMode === 'remix' ? 'جاري إعادة التخيل (قد يستغرق 15 ثانية)...' : 'جاري التحليل...'}
-                          </span>
+                          <div className="flex flex-col items-start">
+                             <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
+                               <RefreshCw className="w-3 h-3 animate-spin" /> 
+                               {state.toolMode === 'remix' ? 'جاري الرسم (قد يستغرق 30 ثانية)...' : 'جاري التحليل...'}
+                             </span>
+                             {longProcessTip && (
+                               <span className="text-[10px] text-orange-500 font-medium mt-1 animate-fade-in">
+                                  العملية تأخذ وقتاً لضمان أعلى جودة، يرجى الانتظار...
+                               </span>
+                             )}
+                          </div>
                         ) : state.currentStep === 'style-selection' ? (
                           <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
                             <Sparkles className="w-3 h-3" /> بانتظار اختيار النمط
