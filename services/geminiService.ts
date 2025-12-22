@@ -4,6 +4,7 @@ import { ImageAnalysis } from "../types";
 
 const getMimeType = (base64: string): string => {
   const match = base64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+  // Default to jpeg if extraction fails, matching Hero.tsx output
   return match ? match[1] : 'image/jpeg';
 };
 
@@ -20,18 +21,16 @@ const validateApiKey = () => {
 };
 
 const checkPayloadSize = (base64: string) => {
-  // حساب تقريبي لحجم البايتات: (طول السلسلة * 3) / 4
+  // حساب تقريبي لحجم البايتات
   const sizeInBytes = (base64.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
   
-  // Gemini API Free Tier قد تواجه مشاكل مع الصور الأكبر من 3MB
-  // نضع حداً آمناً عند 3.0MB لضمان قبول الطلب
-  if (sizeInMB > 3.0) {
+  // رفع الحد قليلاً ليكون 3.5MB لأننا نعتمد على ضغط Hero.tsx المسبق
+  if (sizeInMB > 3.5) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
 };
 
-// إعدادات أمان قصوى (Block None)
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -49,16 +48,18 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
+    // استخدام gemini-2.5-flash لاستقرار أكبر مع JSON في الباقة المجانية
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
-          { text: "Analyze image and provide output as JSON with: colors (HEX), style, objects, and an Arabic prompt." }
+          { text: "Analyze this image. Return ONLY a valid JSON object with these keys: colors (array of hex strings), style (string), layout (string), layoutDetail (string), view (string), viewDetail (string), objects (array of strings), prompt (string). Do not include markdown code blocks." }
         ],
       },
       config: {
         responseMimeType: "application/json",
+        // Schema helps, but 2.5-flash works well even with just mimeType
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -71,19 +72,29 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
             objects: { type: Type.ARRAY, items: { type: Type.STRING } },
             prompt: { type: Type.STRING },
           },
-          required: ["colors", "style", "layout", "layoutDetail", "view", "viewDetail", "objects", "prompt"],
+          required: ["colors", "style", "objects", "prompt"],
         },
       },
     });
 
     if (!response.text) throw new Error("EMPTY_RESPONSE");
-    return JSON.parse(response.text) as ImageAnalysis;
+    
+    // محاولة تنظيف النص من علامات الماركداون إذا وجدت رغم التعليمات
+    const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return JSON.parse(cleanedText) as ImageAnalysis;
+
   } catch (e: any) {
     console.error("Analysis Error:", e);
+    // تفصيل الأخطاء للواجهة
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
     if (e.message.includes("413") || e.message.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
     if (e.message.includes("429") || e.message.includes("Quota")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("Failed to fetch") || e.message.includes("Network")) throw new Error("ERROR_NETWORK");
+    
+    // إذا فشل تحليل JSON
+    if (e instanceof SyntaxError) throw new Error("ERROR_GENERATION_FAILED");
+    
     throw new Error(`ERROR_ANALYSIS_FAILED: ${e.message}`);
   }
 };
@@ -96,9 +107,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const mimeType = getMimeType(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  let description = "A creative artistic composition";
-
-  // 1. المحاولة الأولى: تعديل الصورة المباشر (Image-to-Image)
+  // 1. المحاولة الأولى: Img2Img باستخدام Nano Banana (2.5 flash image)
   try {
     console.log("Attempt 1: Direct Remix (Img2Img)");
     const response = await ai.models.generateContent({
@@ -106,7 +115,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: `Transform this image strictly into this style: ${stylePrompt}. Maintain the composition but change the artistic style entirely.` }
+          { text: `Transform this image into style: ${stylePrompt}. High quality.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -120,41 +129,31 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Attempt 1 Failed: No image returned or safety block.");
   } catch (e: any) {
     console.warn("Attempt 1 Error:", e.message);
-    if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
     if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
-    if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
   }
 
-  // 2. المحاولة الثانية: استخراج الوصف + توليد جديد (Text-to-Image)
-  // هذا الملاذ الآمن: نستخدم الوصف النصي فقط إذا فشلت معالجة الصورة
+  // 2. المحاولة الثانية: استخراج الوصف ثم التوليد (Text-to-Image)
   try {
     console.log("Attempt 2: Describe then Generate");
-    
-    // استخدام نموذج أسرع للوصف لتوفير الوقت
-    const analysisResponse = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const descResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: "Describe the main subject, colors, and composition of this image in one English sentence." }
+          { text: "Describe this image in detail." }
         ]
       }
     });
     
-    if (analysisResponse.text) {
-      description = analysisResponse.text;
-    }
-    console.log("Description obtained:", description);
-
-    // توليد صورة جديدة
+    const description = descResponse.text || "A creative image";
+    
     const genResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          { text: `Generate a high-quality image: ${description}. Art Style: ${stylePrompt}. Ensure high resolution and detail.` }
+          { text: `Create image: ${description}. Style: ${stylePrompt}. High resolution.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -168,36 +167,9 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Attempt 2 Failed: No image generated.");
-
-  } catch (fallbackError: any) {
-    console.warn("Attempt 2 Error:", fallbackError.message);
-    if (fallbackError.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
-  }
-
-  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط
-  try {
-    console.log("Attempt 3: Last Resort (Style Only)");
-    const lastResortResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          { text: `Create a masterpiece image representing the concept of 'Creativity' in this specific style: ${stylePrompt}. High quality, 4k.` }
-        ],
-      },
-      config: { safetySettings: SAFETY_SETTINGS }
-    });
-
-    const lastParts = lastResortResponse.candidates?.[0]?.content?.parts;
-    if (lastParts) {
-      for (const part of lastParts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-  } catch (lastError) {
-    console.error("All attempts failed.");
+  } catch (err: any) {
+    console.error("Attempt 2 Error:", err);
+    if (err.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
   }
 
   throw new Error("ERROR_GENERATION_FAILED");

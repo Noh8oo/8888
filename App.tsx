@@ -72,11 +72,14 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
       try {
-        // استخدام النسخة المضغوطة للإرسال
+        // استخدام النسخة المضغوطة (apiBase64) للإرسال للتحليل
+        console.log("Starting analysis...");
         const analysis = await analyzeImageWithGemini(apiBase64);
+        console.log("Analysis complete:", analysis);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
+        console.error("Analysis Failed inside App:", error);
         setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
       } finally {
         setLoading(false);

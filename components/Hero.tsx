@@ -13,6 +13,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, mode: ToolMode) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0], mode);
+      // Reset input value to allow selecting the same file again if needed
+      e.target.value = '';
     }
   };
 
@@ -21,7 +23,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     let width = img.width;
     let height = img.height;
 
-    // الحفاظ على نسبة العرض إلى الارتفاع
+    // الحفاظ على النسبة
     if (width > height) {
       if (width > maxDim) {
         height *= maxDim / width;
@@ -38,19 +40,27 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // تحسين جودة الرسم
+      // إعدادات لتحسين جودة التصغير
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
     }
-    // إجبار التحويل إلى JPEG لضمان ضغط الحجم (PNG قد يكون ضخماً)
+    
+    // إجبار التحويل إلى JPEG لتقليل الحجم بشكل كبير
     return canvas.toDataURL('image/jpeg', quality);
   };
 
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
     
-    // 1. التحقق المبدئي من حجم الملف الخام (مثلاً 15 ميجابايت كحد أقصى قبل المعالجة)
+    // التحقق من نوع الملف
+    if (!file.type.startsWith('image/')) {
+      alert("يرجى اختيار ملف صورة صالح.");
+      setIsProcessingLocal(false);
+      return;
+    }
+
+    // التحقق المبدئي من حجم الملف الخام (15MB حد أقصى للمعالجة في المتصفح)
     if (file.size > 15 * 1024 * 1024) {
       alert("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 15 ميجابايت.");
       setIsProcessingLocal(false);
@@ -62,39 +72,43 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         try {
-          // 2. إنشاء نسخة العرض (جودة عالية للعين البشرية)
-          // Max 1200px, 85% quality
+          // 1. نسخة العرض: جودة عالية (1200px, 85%)
           const displayBase64 = resizeImage(img, 1200, 0.85);
 
-          // 3. إنشاء نسخة الـ API (نسخة مضغوطة جداً للباقة المجانية)
-          // Max 768px (standard AI input), 60% quality
-          // هذا يضمن أن حجم البايلود غالباً سيكون أقل من 1MB مما يحل مشاكل التايم آوت والرفض
-          const apiBase64 = resizeImage(img, 768, 0.6);
+          // 2. نسخة الـ API: مضغوطة جداً (Max 800px, 50% Quality)
+          // تقليل الجودة لـ 0.5 يضمن أن الحجم سيكون صغيراً جداً (غالباً < 200KB) مما يسرع التحليل جداً
+          const apiBase64 = resizeImage(img, 800, 0.5);
 
           onImageSelect(displayBase64, apiBase64, mode);
         } catch (err) {
           console.error("Error processing image:", err);
-          alert("حدث خطأ أثناء معالجة الصورة محلياً.");
+          alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة بصورة أخرى.");
         } finally {
           setIsProcessingLocal(false);
         }
       };
       img.onerror = () => {
-        alert("فشل تحميل ملف الصورة. قد يكون الملف تالفاً.");
+        alert("فشل قراءة ملف الصورة. قد يكون الملف تالفاً.");
         setIsProcessingLocal(false);
       };
       img.src = e.target?.result as string;
     };
+    
+    reader.onerror = () => {
+      alert("حدث خطأ أثناء قراءة الملف.");
+      setIsProcessingLocal(false);
+    };
+
     reader.readAsDataURL(file);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       {isProcessingLocal && (
-        <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز وضغط الصورة...</p>
-          <p className="text-sm text-gray-500 mt-2">نقوم بتحسين الحجم لضمان سرعة المعالجة مع Gemini</p>
+          <p className="font-bold text-dark dark:text-white text-lg">جاري تحضير الصورة...</p>
+          <p className="text-sm text-gray-500 mt-2">نقوم بضغط الصورة لضمان سرعة الذكاء الاصطناعي</p>
         </div>
       )}
 
