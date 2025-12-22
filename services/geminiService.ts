@@ -1,9 +1,9 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
 let aiInstance: GoogleGenAI | null = null;
 
-// تهيئة العميل عند الطلب فقط لضمان أن process.env تم إعداده في index.tsx
 const getAi = () => {
   if (!aiInstance) {
     aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -11,12 +11,9 @@ const getAi = () => {
   return aiInstance;
 };
 
-// Analyze image to extract style, colors, layout, objects and generate a prompt
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
-  // Remove data URL prefix if present for the API call
   const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const ai = getAi(); // Get the initialized instance
+  const ai = getAi();
 
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -47,19 +44,17 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
           colors: {
             type: Type.ARRAY,
             items: { type: Type.STRING },
-            description: "قائمة بـ 5 رموز ألوان سداسية عشرية (Hex codes)",
           },
-          style: { type: Type.STRING, description: "النمط الفني للصورة باللغة العربية" },
-          layout: { type: Type.STRING, description: "اسم نمط التخطيط باختصار (مثل: قاعدة الأثلاث) باللغة العربية" },
-          layoutDetail: { type: Type.STRING, description: "شرح مفصل لكيفية استخدام التخطيط في الصورة وتأثيره باللغة العربية" },
-          view: { type: Type.STRING, description: "اسم زاوية التصوير باختصار (مثل: زاوية منخفضة) باللغة العربية" },
-          viewDetail: { type: Type.STRING, description: "شرح مفصل لزاوية التصوير وتأثيرها على المشهد باللغة العربية" },
+          style: { type: Type.STRING },
+          layout: { type: Type.STRING },
+          layoutDetail: { type: Type.STRING },
+          view: { type: Type.STRING },
+          viewDetail: { type: Type.STRING },
           objects: { 
             type: Type.ARRAY, 
-            items: { type: Type.STRING }, 
-            description: "قائمة بأهم العناصر والكائنات الموجودة في الصورة باللغة العربية" 
+            items: { type: Type.STRING }
           },
-          prompt: { type: Type.STRING, description: "وصف دقيق للصورة باللغة العربية لإعادة إنشائها" },
+          prompt: { type: Type.STRING },
         },
         required: ["colors", "style", "layout", "layoutDetail", "view", "viewDetail", "objects", "prompt"],
       },
@@ -70,37 +65,55 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   try {
     return JSON.parse(jsonText) as ImageAnalysis;
   } catch (e) {
-    console.error("Failed to parse analysis JSON", e);
     throw new Error("Analysis failed");
   }
 };
 
-// Refine or merge description based on user instruction
+export const enhanceImageWithGemini = async (base64Image: string): Promise<string> => {
+  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const ai = getAi();
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            data: cleanBase64,
+            mimeType: 'image/jpeg',
+          },
+        },
+        {
+          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Output a high-fidelity, professional version while strictly maintaining the original colors, content, and geometry.',
+        },
+      ],
+    },
+  });
+
+  for (const part of response.candidates[0].content.parts) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+
+  throw new Error("No image was returned");
+};
+
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   try {
-    const ai = getAi(); // Get the initialized instance
+    const ai = getAi();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `لديك وصف لصورة: "${originalDescription}".
-      
-      المطلوب: قم بتعديل هذا الوصف أو دمج تعليمات المستخدم التالية معه: "${userInstruction}".
-      
-      الهدف هو إنتاج وصف جديد ومحسن (Prompt) يعكس الوصف الأصلي مع التعديلات المطلوبة.
-      أجب بالنص الجديد فقط بدون أي مقدمات أو شرح.`,
+      contents: `لديك وصف لصورة: "${originalDescription}". المطلوب: تعديله بناءً على: "${userInstruction}". أجب بالنص الجديد فقط.`,
     });
-
     return response.text || originalDescription;
   } catch (error) {
-    console.error("Refinement failed:", error);
     throw error;
   }
 };
 
-// Chat with Gemini
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
-  const ai = getAi(); // Get the initialized instance
-  
-  // Use gemini-2.5-flash for faster chat interactions
+  const ai = getAi();
   const chat = ai.chats.create({
     model: "gemini-2.5-flash",
     history: history,
@@ -108,7 +121,6 @@ export const chatWithGemini = async (history: { role: string; parts: { text: str
       systemInstruction: "أنت مساعد ذكي متخصص في التصميم وتحليل الصور. أجب دائماً باللغة العربية وبأسلوب مهني وودود."
     }
   });
-
   const response = await chat.sendMessage({ message: newMessage });
   return response.text || "";
 };

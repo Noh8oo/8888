@@ -5,16 +5,18 @@ import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
-import { AppState, ImageAnalysis } from './types';
-import { analyzeImageWithGemini, refineDescriptionWithGemini } from './services/geminiService';
-import { X, Share2, AlertTriangle } from 'lucide-react';
+import { AppState, ImageAnalysis, ToolMode } from './types';
+import { analyzeImageWithGemini, refineDescriptionWithGemini, enhanceImageWithGemini } from './services/geminiService';
+import { X, Share2, AlertTriangle, Wand2, RefreshCw, Download, Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     currentStep: 'upload',
+    toolMode: null,
     image: null,
     analysis: null,
   });
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -29,40 +31,51 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // Check for API Key on mount
   useEffect(() => {
     const key = process.env.API_KEY;
     if (!key) {
-      console.warn("API Key is missing!");
       setApiKeyError(true);
     }
   }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  const handleImageSelect = async (base64: string) => {
-    setState({ ...state, currentStep: 'analyzing', image: base64 });
-    setLoading(true);
-
-    try {
-      const analysis = await analyzeImageWithGemini(base64);
-      setState(prev => ({ 
-        ...prev, 
-        currentStep: 'results', 
-        analysis: analysis 
-      }));
-      setCurrentDescription(analysis.prompt);
-    } catch (error) {
-      console.error("Analysis failed", error);
-      alert("حدث خطأ أثناء تحليل الصورة. الرجاء التأكد من صحة مفتاح API والمحاولة مجدداً.");
-      setState(prev => ({ ...prev, currentStep: 'upload', image: null }));
-    } finally {
-      setLoading(false);
+  const handleImageSelect = async (base64: string, mode: ToolMode) => {
+    setOriginalImage(base64);
+    
+    if (mode === 'enhance') {
+      setState({ ...state, currentStep: 'enhancing', toolMode: 'enhance', image: base64 });
+      setLoading(true);
+      try {
+        const enhancedBase64 = await enhanceImageWithGemini(base64);
+        setState(prev => ({ ...prev, currentStep: 'results', image: enhancedBase64 }));
+      } catch (error) {
+        console.error("Enhancement failed", error);
+        alert("تعذر تحسين جودة الصورة حالياً.");
+        setState(prev => ({ ...prev, currentStep: 'upload', toolMode: null }));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setState({ ...state, currentStep: 'analyzing', toolMode: 'analyze', image: base64 });
+      setLoading(true);
+      try {
+        const analysis = await analyzeImageWithGemini(base64);
+        setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
+        setCurrentDescription(analysis.prompt);
+      } catch (error) {
+        console.error("Analysis failed", error);
+        alert("حدث خطأ أثناء تحليل الصورة.");
+        setState(prev => ({ ...prev, currentStep: 'upload', toolMode: null }));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleReset = () => {
-    setState({ currentStep: 'upload', image: null, analysis: null });
+    setState({ currentStep: 'upload', toolMode: null, image: null, analysis: null });
+    setOriginalImage(null);
     setCurrentDescription('');
   };
 
@@ -74,116 +87,94 @@ const App: React.FC = () => {
       setCurrentDescription(refinedText);
     } catch (error) {
       console.error("Refinement failed", error);
-      alert("تعذر تحديث الوصف. الرجاء المحاولة مجدداً.");
     } finally {
       setIsRefining(false);
     }
   };
 
   const handleShare = async () => {
-    const shareId = Math.random().toString(36).substring(2, 9);
-    const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
-    
-    const shareData = {
-      title: 'نتائج تحليل لومينا',
-      text: `شاهد تحليل الصورة ووصفها المقترح:\n\n${currentDescription.substring(0, 100)}...`,
-      url: shareUrl,
-    };
-
+    if (!state.image) return;
     try {
       if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        alert('تم نسخ رابط المشاركة الخاص إلى الحافظة!');
+        await navigator.share({ title: 'نتائج لومينا', url: window.location.href });
       }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
+    } catch (err) {}
   };
 
   if (apiKeyError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md text-center border border-red-100 dark:border-red-900/30">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-xl font-bold text-dark dark:text-white mb-2">مفتاح API مفقود</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            لم يتم العثور على مفتاح Gemini API. يرجى التأكد من إضافة المتغير 
-            <code className="mx-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono">VITE_API_KEY</code> 
-            في إعدادات Vercel.
-          </p>
-          <a 
-            href="https://aistudio.google.com/app/apikey" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium"
-          >
-            احصل على مفتاح API
-          </a>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">API Key Mismatch</h2>
+          <p className="text-gray-500 mb-6">يرجى ضبط مفتاح Gemini في بيئة العمل.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 font-sans selection:bg-primary/20 selection:text-primary transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300">
       <Header 
         isDarkMode={isDarkMode} 
         toggleDarkMode={toggleDarkMode} 
         highlightSupport={state.currentStep === 'results'} 
       />
       
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-80px)]">
-        
-        {state.currentStep === 'upload' && (
-          <div className="animate-fade-in">
-            <Hero onImageSelect={handleImageSelect} />
-          </div>
-        )}
+      <main className="container mx-auto px-4 py-8">
+        {state.currentStep === 'upload' && <Hero onImageSelect={handleImageSelect} />}
 
-        {(state.currentStep === 'analyzing' || state.currentStep === 'results') && state.image && (
+        {(state.currentStep !== 'upload') && (
           <div className="max-w-7xl mx-auto animate-fade-in">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-display font-bold text-dark dark:text-white">
-                {state.currentStep === 'analyzing' ? 'جاري تحليل الصورة...' : 'نتائج التحليل والوصف'}
-              </h2>
-              <div className="flex gap-2">
+            <div className="flex justify-between items-center mb-8 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {state.currentStep === 'analyzing' || state.currentStep === 'enhancing' ? (
+                    <span className="flex items-center gap-3">
+                      <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                      {state.toolMode === 'enhance' ? 'جاري التحسين الاحترافي...' : 'جاري التحليل...'}
+                    </span>
+                  ) : (
+                    state.toolMode === 'enhance' ? 'التحسين الفائق مكتمل' : 'نتائج تحليل الصورة'
+                  )}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {state.toolMode === 'enhance' ? 'قارن بين النسخة الأصلية والمحسنة' : 'بيانات النمط والألوان'}
+                </p>
+              </div>
+              <div className="flex gap-3">
                 {state.currentStep === 'results' && (
-                  <button 
-                    onClick={handleShare}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors px-3 py-1.5 rounded-lg hover:bg-primary/5 dark:text-gray-400 dark:hover:text-primary dark:hover:bg-gray-800"
-                    title="مشاركة النتائج"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">مشاركة</span>
-                  </button>
+                  <button onClick={handleShare} className="p-2.5 bg-white dark:bg-gray-700 rounded-xl hover:text-primary shadow-sm"><Share2 className="w-5 h-5" /></button>
                 )}
-                <button 
-                  onClick={handleReset}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-gray-800"
-                >
-                  <X className="w-4 h-4" />
-                  إغلاق
-                </button>
+                <button onClick={handleReset} className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl shadow-sm"><X className="w-5 h-5" /></button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-              <div className="w-full">
+            <div className={`grid grid-cols-1 ${state.toolMode === 'analyze' ? 'lg:grid-cols-2' : 'max-w-4xl mx-auto'} gap-8`}>
+              <div className="space-y-4">
                 <ImageViewer 
-                  imageSrc={state.image} 
+                  imageSrc={state.image || originalImage || ''} 
+                  originalSrc={state.toolMode === 'enhance' ? originalImage : null}
+                  isEnhancing={state.currentStep === 'enhancing'}
                 />
+                
+                {state.currentStep === 'results' && state.toolMode === 'enhance' && (
+                  <div className="flex gap-3">
+                    <a 
+                      href={state.image || ''} 
+                      download="enhanced_lumina.png"
+                      className="flex-1 flex items-center justify-center gap-3 bg-primary text-white py-4 rounded-2xl font-bold shadow-xl hover:scale-[1.02] transition-all"
+                    >
+                      <Download className="w-5 h-5" />
+                      تحميل النسخة المحسنة
+                    </a>
+                    <button onClick={handleReset} className="px-6 bg-gray-100 dark:bg-gray-800 rounded-2xl font-bold">جديد</button>
+                  </div>
+                )}
               </div>
 
-              <div className="w-full">
-                <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors duration-300">
-                  <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2 text-dark dark:text-white">
-                    <span className="w-2 h-6 bg-primary rounded-full"></span>
-                    تحليل الصورة والوصف
-                  </h3>
+              {state.toolMode === 'analyze' && (
+                <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700">
                   <AnalysisPanel 
                     analysis={state.analysis} 
                     currentDescription={currentDescription}
@@ -192,13 +183,13 @@ const App: React.FC = () => {
                     onRefineDescription={handleRefineDescription}
                   />
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
       </main>
 
-      <ChatWidget imageAnalysis={state.analysis} />
+      {state.toolMode === 'analyze' && <ChatWidget imageAnalysis={state.analysis} />}
     </div>
   );
 };
