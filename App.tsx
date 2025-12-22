@@ -7,7 +7,7 @@ import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette, Camera, Ghost, Box, Zap } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette } from 'lucide-react';
 
 const REMIX_STYLES: RemixStyle[] = [
   { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography' },
@@ -107,7 +107,7 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel (اسم المتغير VITE_API_KEY).";
+    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API.";
     if (errorMsg.includes("400")) return "تعذر معالجة هذه الصورة بالتحديد. يرجى تجربة صورة أخرى أقل تعقيداً.";
     if (errorMsg.includes("403") || errorMsg.includes("location")) return "الخدمة غير متاحة في منطقتك حالياً أو الحساب محظور.";
     if (errorMsg.includes("SAFETY")) return "تم حظر الصورة بواسطة فلاتر الأمان. جرب صورة مختلفة.";
@@ -133,8 +133,14 @@ const App: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
                     {getFriendlyErrorMessage(state.error)}
                   </p>
-                  {state.error.includes("API_KEY") && (
-                     <p className="text-xs text-gray-500 mt-2">تلميح: تأكد من إضافة VITE_API_KEY في إعدادات Vercel</p>
+                  {state.error.includes("API_KEY_MISSING") && (
+                     <div className="mt-4 p-3 bg-white dark:bg-black/20 rounded-lg text-xs text-left font-mono text-gray-500" dir="ltr">
+                        <strong>Vercel Setup:</strong><br/>
+                        1. Settings &rarr; Environment Variables<br/>
+                        2. Key: <code>VITE_API_KEY</code><br/>
+                        3. Value: <code>[Your Gemini Key]</code><br/>
+                        4. Save & Redeploy
+                     </div>
                   )}
                 </div>
                 <button 

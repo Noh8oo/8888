@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
@@ -10,6 +11,15 @@ const cleanBase64Data = (base64: string): string => {
   return base64.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, '');
 };
 
+const validateApiKey = () => {
+  // التحقق من أن المفتاح موجود وغير فارغ
+  const key = process.env.API_KEY;
+  if (!key || key.trim() === '' || key === 'undefined') {
+    console.error("API Key Check Failed: Key is missing.");
+    throw new Error("API_KEY_MISSING");
+  }
+};
+
 // إعدادات أمان متساهلة للسماح بمعالجة الصور الفنية
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -19,9 +29,9 @@ const SAFETY_SETTINGS = [
 ];
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
+  validateApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  // Guideline: Always use process.env.API_KEY directly
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -56,11 +66,14 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
     console.error("Analysis Error:", e);
-    throw new Error("فشل تحليل الصورة. تأكد من المفتاح أو حاول صورة أخرى.");
+    // تمرير الخطأ كما هو إذا كان متعلقاً بالمفتاح
+    if (e.message === "API_KEY_MISSING") throw e;
+    throw new Error("فشل تحليل الصورة. قد تكون الخدمة مشغولة أو الصورة غير واضحة.");
   }
 };
 
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
+  validateApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -77,7 +90,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         ],
       },
       config: {
-        safetySettings: SAFETY_SETTINGS, // ضروري جداً لتجنب الحظر الفوري
+        safetySettings: SAFETY_SETTINGS,
       }
     });
 
@@ -89,17 +102,14 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    throw new Error("No image returned from direct remix");
+    throw new Error("Direct remix yielded no image");
 
   } catch (e: any) {
     console.warn("Direct remix failed, attempting fallback (Text-to-Image)...", e);
     
-    // الخطة البديلة (Fallback):
-    // إذا فشل التعديل (بسبب 400 Bad Request أو فلاتر)، نقوم بتوليد صورة جديدة من الصفر
-    // باستخدام وصف الصورة + النمط. هذا يضمن نتيجة دائماً.
-    
+    // الخطة البديلة (Fallback): توليد صورة جديدة من الصفر
     try {
-      // 1. استخراج وصف سريع للصورة إذا لم يكن التعديل المباشر متاحاً
+      // 1. استخراج وصف سريع
       const descResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: {
@@ -112,8 +122,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       
       const imgDescription = descResponse.text || "A creative composition";
       
-      // 2. توليد صورة جديدة تماماً بناءً على الوصف + النمط
-      // نستخدم gemini-2.5-flash-image كمولد صور
+      // 2. توليد صورة جديدة
       const genResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
@@ -134,16 +143,20 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
           }
         }
       }
+      // إذا فشل حتى الـ Fallback
+      throw new Error("لم ينجح التوليد البديل.");
+      
     } catch (fallbackError: any) {
       console.error("Fallback failed:", fallbackError);
-      throw new Error(`فشلت المعالجة: ${e.message}`);
+      throw new Error(`تعذر تحويل الصورة. السبب: ${e.message}`);
     }
-    
-    throw new Error("تعذر إنشاء الصورة. يرجى المحاولة لاحقاً.");
   }
+  
+  throw new Error("حدث خطأ غير متوقع أثناء المعالجة.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
+  validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -153,6 +166,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
 };
 
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
+  validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
