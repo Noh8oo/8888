@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
 const getMimeType = (base64: string): string => {
@@ -88,7 +88,6 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
   validateApiKey();
   
-  // 1. تنظيف الـ Base64 بشكل صارم
   const cleanBase64 = cleanBase64Data(base64Image);
   checkPayloadSize(cleanBase64); 
   
@@ -96,30 +95,42 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    // 2. استخدام الموديل الصحيح للصور
-    // gemini-2.5-flash-image هو الاسم المعياري للموديل gemini-2.5-flash-image-preview-09-2025
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image', 
       contents: {
         parts: [
-          // 3. الترتيب مهم جداً: الصورة أولاً ثم النص
           { inlineData: { data: cleanBase64, mimeType } }, 
-          { text: stylePrompt },
+          // Ensure the prompt explicitly asks for generation to avoid text-only descriptions
+          { text: `Generate a new image based on this input. ${stylePrompt}` },
         ],
       },
       config: { 
         safetySettings: SAFETY_SETTINGS,
+        // Removed responseModalities to avoid potential conflicts with model defaults or refusals
       }
     });
 
     // استخراج الصورة من الاستجابة
     const parts = response.candidates?.[0]?.content?.parts;
+    let textResponse = "";
+
     if (parts) {
       for (const part of parts) {
         if (part.inlineData && part.inlineData.data) {
           return `data:image/png;base64,${part.inlineData.data}`;
         }
+        if (part.text) {
+          textResponse += part.text + " ";
+        }
       }
+    }
+    
+    // If we have text but no image, it's likely a refusal or description
+    if (textResponse.trim()) {
+      console.warn("Model returned text instead of image:", textResponse);
+      // Throwing this allows the UI to catch it, though we might want to map it to a generic error if it's just chatter
+      // But usually it's a safety refusal or capability refusal
+      throw new Error(`NO_IMAGE_RETURNED: ${textResponse.substring(0, 100)}`);
     }
     
     throw new Error("NO_IMAGE_RETURNED");
@@ -130,7 +141,11 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
     if (e.message.includes("not found") || e.message.includes("404")) throw new Error("ERROR_MODEL_NOT_FOUND");
+    if (e.message.includes("SAFETY")) throw new Error("ERROR_SAFETY_BLOCK");
     
+    // Propagate the specific refusal text if we caught it above
+    if (e.message.includes("NO_IMAGE_RETURNED")) throw e;
+
     throw new Error(`ERROR_GENERATION_FAILED: ${e.message}`);
   }
 };

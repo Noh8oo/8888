@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Palette, Loader2, Sparkles } from 'lucide-react';
+import { Search, Loader2, Zap } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -64,10 +64,8 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           // 1. نسخة العرض (Display): جودة عالية ليرى المستخدم الصورة بوضوح
           const displayBase64 = resizeImage(img, 1500, 0.90);
 
-          // 2. نسخة الـ API (الحيلة الذكية): 
-          // تم تقليل الحجم إلى 768 بكسل والجودة 0.5 (50%)
-          // هذا يقلل حجم البيانات بنسبة 90% ويضمن وصول الطلب لجوجل فوراً دون مشاكل Vercel Timeout
-          const apiBase64 = resizeImage(img, 768, 0.50);
+          // 2. نسخة الـ API: تقليل الحجم لضمان سرعة الشبكة
+          const apiBase64 = resizeImage(img, 1024, 0.60);
 
           onImageSelect(displayBase64, apiBase64, mode);
         } catch (err) {
@@ -97,8 +95,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري ضغط وتجهيز الصورة ذكياً...</p>
-          <p className="text-sm text-gray-500 mt-2">نقوم بتقليل حجم البيانات لضمان سرعة الاتصال المباشر</p>
+          <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز الصورة...</p>
         </div>
       )}
 
@@ -107,7 +104,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          أدوات احترافية لتحليل الصور وإعادة تخيلها بالذكاء الاصطناعي.
+          أدوات احترافية لتحليل الصور ورفع جودتها بالذكاء الاصطناعي.
         </p>
       </div>
 
@@ -122,10 +119,10 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         />
         <ToolCard 
           id="fileInputRemix" 
-          title="إستوديو لومينا" 
-          desc="حول صورك إلى لوحات فنية، أو حسن جودتها وإضاءتها بضغطة زر." 
-          icon={<Palette className="w-8 h-8 text-purple-600" />}
-          colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
+          title="توضيح البكسلات" 
+          desc="رفع دقة الصورة، إزالة التشويش، وتوضيح التفاصيل الباهتة فورياً." 
+          icon={<Zap className="w-8 h-8 text-emerald-600" />}
+          colorClass="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500"
           onFileSelect={(e) => handleFileInput(e, 'remix')}
         />
       </div>
@@ -158,12 +155,12 @@ const ToolCard: React.FC<ToolCardProps> = ({ id, title, desc, icon, colorClass, 
       {icon}
     </div>
     <div className="absolute top-6 right-6">
-       {title.includes("إستوديو") && <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />}
+       {title.includes("توضيح") && <Zap className="w-5 h-5 text-emerald-500 animate-pulse" />}
     </div>
     <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">{title}</h3>
     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-8">{desc}</p>
     <div className="mt-auto px-10 py-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-xs font-bold text-gray-500 dark:text-gray-400 group-hover:bg-primary group-hover:text-white transition-colors">
-      اضغط هنا للاختيار
+      اضغط لرفع الصورة
     </div>
   </div>
 );
