@@ -120,28 +120,28 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    // ترجمة رموز الأخطاء إلى رسائل مفهومة
+    // ترجمة رموز الأخطاء إلى رسائل مفهومة ودية
     if (errorMsg.includes("ERROR_API_KEY_MISSING")) {
-      return "لم يتم العثور على مفتاح API. يرجى التأكد من إضافته في إعدادات البيئة (Environment Variables).";
+      return "لم يتم العثور على مفتاح API. تأكد من إضافته في إعدادات البيئة.";
     }
     if (errorMsg.includes("ERROR_IMAGE_TOO_LARGE") || errorMsg.includes("413")) {
-      return "حجم الصورة كبير جداً بالنسبة للخادم. حاول استخدام صورة أصغر حجماً أو أقل دقة.";
+      return "حجم الصورة كبير جداً بالنسبة للباقة المجانية. لقد حاولنا ضغطها ولكنها لا تزال كبيرة. يرجى اختيار صورة أصغر.";
+    }
+    if (errorMsg.includes("ERROR_QUOTA_EXCEEDED") || errorMsg.includes("429")) {
+      return "لقد تجاوزت حد الاستخدام المسموح به في الدقيقة (Free Tier). يرجى الانتظار لحظات ثم المحاولة.";
     }
     if (errorMsg.includes("ERROR_NETWORK") || errorMsg.includes("Failed to fetch")) {
-      return "مشكلة في الاتصال بالإنترنت أو الخادم. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
+      return "يبدو أن هناك مشكلة في الاتصال. تحقق من الإنترنت أو حاول مرة أخرى لاحقاً.";
     }
     if (errorMsg.includes("ERROR_GENERATION_FAILED")) {
-      return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
-    }
-    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) {
-      return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
+      return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة جداً، يرجى المحاولة مرة أخرى.";
     }
     if (errorMsg.includes("SAFETY") || errorMsg.includes("blocked")) {
-      return "تم رفض معالجة الصورة لأسباب تتعلق بسياسات المحتوى الآمن.";
+      return "رفض النموذج معالجة الصورة لأسباب تتعلق بسياسات المحتوى الآمن.";
     }
     
     // رسالة افتراضية
-    return "حدث خطأ غير متوقع أثناء المعالجة. يرجى المحاولة بصورة أخرى.";
+    return "حدث خطأ غير متوقع. يرجى المحاولة بصورة أخرى.";
   };
 
   return (

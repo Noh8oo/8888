@@ -38,20 +38,21 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // تحسين جودة الرسم عند التصغير
+      // تحسين جودة الرسم
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
     }
+    // إجبار التحويل إلى JPEG لضمان ضغط الحجم
     return canvas.toDataURL('image/jpeg', quality);
   };
 
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
     
-    // التحقق من حجم الملف الأولي
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      alert("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 10 ميجابايت.");
+    // التحقق المبدئي من حجم الملف
+    if (file.size > 15 * 1024 * 1024) { // 15MB hard limit before processing
+      alert("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 15 ميجابايت.");
       setIsProcessingLocal(false);
       return;
     }
@@ -61,14 +62,14 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       const img = new Image();
       img.onload = () => {
         try {
-          // 1. نسخة العرض (جودة جيدة للعين البشرية)
+          // 1. نسخة العرض (جودة عالية للعين البشرية)
           // Max 1200px, 85% quality
           const displayBase64 = resizeImage(img, 1200, 0.85);
 
-          // 2. نسخة الـ API (مضغوطة جداً لضمان سرعة النقل وعدم تجاوز الحدود)
-          // Gemini API يعمل بامتياز حتى مع صور 800px.
-          // Max 800px, 60% quality -> ينتج صورة حجمها حوالي 100-300KB فقط بدلاً من 4MB
-          const apiBase64 = resizeImage(img, 800, 0.6);
+          // 2. نسخة الـ API (نسخة مضغوطة جداً للباقة المجانية)
+          // Max 768px (standard AI input), 60% quality
+          // هذا يضمن أن حجم البايلود غالباً سيكون أقل من 1MB
+          const apiBase64 = resizeImage(img, 768, 0.6);
 
           onImageSelect(displayBase64, apiBase64, mode);
         } catch (err) {
@@ -92,7 +93,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري ضغط وتجهيز الصورة...</p>
+          <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز وضغط الصورة...</p>
           <p className="text-sm text-gray-500 mt-2">نقوم بتحسين الحجم لضمان سرعة المعالجة</p>
         </div>
       )}

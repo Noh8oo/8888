@@ -24,8 +24,9 @@ const checkPayloadSize = (base64: string) => {
   const sizeInBytes = (base64.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
   
-  // Gemini API يقبل حتى 4MB في الطلب الواحد، لكننا نضع حداً آمناً 3MB
-  if (sizeInMB > 3.5) {
+  // Gemini API Free Tier قد تواجه مشاكل مع الصور الأكبر من 3MB
+  // نضع حداً آمناً عند 2.5MB
+  if (sizeInMB > 3.0) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
 };
@@ -81,7 +82,8 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     console.error("Analysis Error:", e);
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
     if (e.message.includes("413") || e.message.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
-    if (e.message.includes("Failed to fetch")) throw new Error("ERROR_NETWORK");
+    if (e.message.includes("429") || e.message.includes("Quota")) throw new Error("ERROR_QUOTA_EXCEEDED");
+    if (e.message.includes("Failed to fetch") || e.message.includes("Network")) throw new Error("ERROR_NETWORK");
     throw new Error(`ERROR_ANALYSIS_FAILED: ${e.message}`);
   }
 };
@@ -89,7 +91,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
   validateApiKey();
   const cleanBase64 = cleanBase64Data(base64Image);
-  checkPayloadSize(cleanBase64); // فحص الحجم قبل الإرسال
+  checkPayloadSize(cleanBase64); 
   
   const mimeType = getMimeType(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -122,15 +124,15 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   } catch (e: any) {
     console.warn("Attempt 1 Error:", e.message);
     if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
+    if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
   }
 
   // 2. المحاولة الثانية: استخراج الوصف + توليد جديد (Text-to-Image)
-  // هذه الطريقة أكثر موثوقية إذا فشلت الأولى بسبب الفلاتر
   try {
     console.log("Attempt 2: Describe then Generate");
     
-    // وصف الصورة أولاً
+    // استخدام نموذج أسرع للوصف لتوفير الوقت
     const analysisResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -146,7 +148,7 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     }
     console.log("Description obtained:", description);
 
-    // توليد صورة جديدة بناءً على الوصف
+    // توليد صورة جديدة
     const genResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -169,9 +171,10 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
 
   } catch (fallbackError: any) {
     console.warn("Attempt 2 Error:", fallbackError.message);
+    if (fallbackError.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
   }
 
-  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط
+  // 3. المحاولة الثالثة: توليد بناءً على النمط فقط
   try {
     console.log("Attempt 3: Last Resort (Style Only)");
     const lastResortResponse = await ai.models.generateContent({
@@ -196,7 +199,6 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     console.error("All attempts failed.");
   }
 
-  // إذا وصلنا هنا، فكل شيء فشل
   throw new Error("ERROR_GENERATION_FAILED");
 };
 
