@@ -12,7 +12,6 @@ const cleanBase64Data = (base64: string): string => {
 };
 
 const validateApiKey = () => {
-  // التحقق من أن المفتاح موجود وغير فارغ
   const key = process.env.API_KEY;
   if (!key || key.trim() === '' || key === 'undefined') {
     console.error("API Key Check Failed: Key is missing.");
@@ -20,12 +19,13 @@ const validateApiKey = () => {
   }
 };
 
-// إعدادات أمان متساهلة للسماح بمعالجة الصور الفنية
+// إعدادات أمان قصوى للسماح بتوليد الصور
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
@@ -66,9 +66,8 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     return JSON.parse(response.text) as ImageAnalysis;
   } catch (e: any) {
     console.error("Analysis Error:", e);
-    // تمرير الخطأ كما هو إذا كان متعلقاً بالمفتاح
     if (e.message === "API_KEY_MISSING") throw e;
-    throw new Error("فشل تحليل الصورة. قد تكون الخدمة مشغولة أو الصورة غير واضحة.");
+    throw new Error("فشل تحليل الصورة. حاول مرة أخرى.");
   }
 };
 
@@ -78,15 +77,15 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+  // 1. المحاولة الأولى: تعديل الصورة المباشر (Image-to-Image)
   try {
-    // المحاولة الأولى: تعديل الصورة مباشرة (Image-to-Image)
-    console.log("Attempting direct remix...");
+    console.log("Starting Direct Remix (Img2Img)...");
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: `Transform this image strictly into this style: ${stylePrompt}. Keep the main subject but redraw everything in high quality.` }
+          { text: `Create a high-quality version of this image in this style: ${stylePrompt}. Maintain the composition but change the artistic style entirely.` }
         ],
       },
       config: {
@@ -94,65 +93,73 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       }
     });
 
+    // التحقق من وجود صورة في الرد
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
-        if (part.inlineData) {
+        if (part.inlineData && part.inlineData.data) {
           return `data:image/png;base64,${part.inlineData.data}`;
         }
       }
     }
-    throw new Error("Direct remix yielded no image");
-
-  } catch (e: any) {
-    console.warn("Direct remix failed, attempting fallback (Text-to-Image)...", e);
     
-    // الخطة البديلة (Fallback): توليد صورة جديدة من الصفر
-    try {
-      // 1. استخراج وصف سريع
-      const descResponse = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            { inlineData: { mimeType, data: cleanBase64 } },
-            { text: "Describe the main subject and composition of this image in English briefly." }
-          ]
-        }
-      });
-      
-      const imgDescription = descResponse.text || "A creative composition";
-      
-      // 2. توليد صورة جديدة
-      const genResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            { text: `Generate an image: ${imgDescription}. Style: ${stylePrompt}. High quality, 4k.` }
-          ],
-        },
-        config: {
-          safetySettings: SAFETY_SETTINGS,
-        }
-      });
+    // إذا وصلنا هنا، فالنموذج رد ولكن بدون صورة (غالباً فلتر أمان صامت)
+    console.warn("Direct Remix returned text only or blocked content. Switching to Fallback.");
+  } catch (e: any) {
+    console.warn("Direct Remix failed with error:", e.message);
+    // ننتقل للخطة البديلة
+  }
 
-      const genParts = genResponse.candidates?.[0]?.content?.parts;
-      if (genParts) {
-        for (const part of genParts) {
-          if (part.inlineData) {
-            return `data:image/png;base64,${part.inlineData.data}`;
-          }
+  // 2. الخطة البديلة: توليد صورة من الصفر (Text-to-Image)
+  // هذه الطريقة أكثر ضماناً لأنها تتجاوز قيود "الصورة الأصلية"
+  try {
+    console.log("Starting Fallback (Text2Img)...");
+    
+    // أ. استخراج وصف للصورة الأصلية أولاً
+    const analysisResponse = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          { inlineData: { data: cleanBase64, mimeType } },
+          { text: "Describe the main subject, colors, and composition of this image in one English sentence." }
+        ]
+      }
+    });
+    
+    const description = analysisResponse.text || "A creative scene";
+    console.log("Fallback Description:", description);
+
+    // ب. توليد صورة جديدة بناءً على الوصف + النمط
+    const genResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { text: `Generate a high-quality image: ${description}. Art Style: ${stylePrompt}. Ensure high resolution and detail.` }
+        ],
+      },
+      config: {
+        safetySettings: SAFETY_SETTINGS,
+      }
+    });
+
+    const genParts = genResponse.candidates?.[0]?.content?.parts;
+    if (genParts) {
+      for (const part of genParts) {
+        if (part.inlineData && part.inlineData.data) {
+          return `data:image/png;base64,${part.inlineData.data}`;
         }
       }
-      // إذا فشل حتى الـ Fallback
-      throw new Error("لم ينجح التوليد البديل.");
-      
-    } catch (fallbackError: any) {
-      console.error("Fallback failed:", fallbackError);
-      throw new Error(`تعذر تحويل الصورة. السبب: ${e.message}`);
     }
+    
+    throw new Error("No image generated in fallback.");
+
+  } catch (fallbackError: any) {
+    console.error("All remix attempts failed:", fallbackError);
+    if (fallbackError.message?.includes("SAFETY")) {
+      throw new Error("REJECTED_SAFETY");
+    }
+    throw new Error(`FAILED_GENERATION: ${fallbackError.message}`);
   }
-  
-  throw new Error("حدث خطأ غير متوقع أثناء المعالجة.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {

@@ -27,7 +27,7 @@ const App: React.FC = () => {
     error: null,
   });
   const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [apiImage, setApiImage] = useState<string | null>(null); // Store the compressed image for API
+  const [apiImage, setApiImage] = useState<string | null>(null);
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -51,7 +51,6 @@ const App: React.FC = () => {
     if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (mode === 'remix') {
-      // Go to style selection instead of immediate processing
       setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
@@ -72,7 +71,7 @@ const App: React.FC = () => {
     if (!apiImage) return;
     
     setSelectedStyle(style);
-    setState(prev => ({ ...prev, currentStep: 'processing' }));
+    setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
     setLoading(true);
 
     try {
@@ -108,10 +107,11 @@ const App: React.FC = () => {
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
     if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API.";
-    if (errorMsg.includes("400")) return "تعذر معالجة هذه الصورة بالتحديد. يرجى تجربة صورة أخرى أقل تعقيداً.";
-    if (errorMsg.includes("403") || errorMsg.includes("location")) return "الخدمة غير متاحة في منطقتك حالياً أو الحساب محظور.";
-    if (errorMsg.includes("SAFETY")) return "تم حظر الصورة بواسطة فلاتر الأمان. جرب صورة مختلفة.";
-    return errorMsg;
+    if (errorMsg.includes("REJECTED_SAFETY")) return "عذراً، رفض النموذج معالجة الصورة لأسباب تتعلق بسياسات الأمان (Safety Filters).";
+    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة في الوقت الحالي. الخوادم مشغولة، يرجى المحاولة بعد قليل.";
+    if (errorMsg.includes("400")) return "طلب غير صالح. قد تكون الصورة معقدة جداً للنموذج.";
+    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً. يرجى الانتظار دقيقة والمحاولة.";
+    return "حدث خطأ غير متوقع أثناء الاتصال بالخادم.";
   };
 
   return (
@@ -128,18 +128,14 @@ const App: React.FC = () => {
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">عذراً، حدث خطأ</h3>
+                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">نأسف، لم تكتمل العملية</h3>
                 <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
                     {getFriendlyErrorMessage(state.error)}
                   </p>
                   {state.error.includes("API_KEY_MISSING") && (
                      <div className="mt-4 p-3 bg-white dark:bg-black/20 rounded-lg text-xs text-left font-mono text-gray-500" dir="ltr">
-                        <strong>Vercel Setup:</strong><br/>
-                        1. Settings &rarr; Environment Variables<br/>
-                        2. Key: <code>VITE_API_KEY</code><br/>
-                        3. Value: <code>[Your Gemini Key]</code><br/>
-                        4. Save & Redeploy
+                        Ensure VITE_API_KEY is set in Vercel settings.
                      </div>
                   )}
                 </div>
@@ -166,7 +162,8 @@ const App: React.FC = () => {
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'processing'].includes(state.currentStep) ? (
                           <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
+                            <RefreshCw className="w-3 h-3 animate-spin" /> 
+                            {state.toolMode === 'remix' ? 'جاري إعادة التخيل (قد يستغرق 15 ثانية)...' : 'جاري التحليل...'}
                           </span>
                         ) : state.currentStep === 'style-selection' ? (
                           <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
