@@ -99,7 +99,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
 
       <div className="bg-gray-50 dark:bg-gray-800/30 rounded-[2rem] p-8 border border-gray-100 dark:border-gray-700 text-center">
          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            تم التطوير بواسطة <strong>نهاد محمد</strong> • يفضل استخدام صور متوسطة الحجم
+            تم التطوير بواسطة <strong>نهاد محمد</strong>
          </p>
       </div>
     </div>
