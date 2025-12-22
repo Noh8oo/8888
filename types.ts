@@ -17,10 +17,10 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export type ToolMode = 'analyze' | 'enhance' | 'transform' | null;
+export type ToolMode = 'analyze' | 'enhance' | null;
 
 export interface AppState {
-  currentStep: 'upload' | 'analyzing' | 'enhancing' | 'transforming' | 'results';
+  currentStep: 'upload' | 'analyzing' | 'enhancing' | 'results';
   toolMode: ToolMode;
   image: string | null; // Base64 string
   analysis: ImageAnalysis | null;

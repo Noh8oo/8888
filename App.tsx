@@ -5,10 +5,9 @@ import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
-import { ArtisticGallery, ArtisticStyle } from './components/ArtisticGallery';
 import { AppState, ToolMode } from './types';
-import { analyzeImageWithGemini, refineDescriptionWithGemini, enhanceImageWithGemini, transformImageWithGemini } from './services/geminiService';
-import { X, Share2, AlertTriangle, Wand2, RefreshCw, Download, Sparkles, Palette, Check, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { analyzeImageWithGemini, refineDescriptionWithGemini, enhanceImageWithGemini } from './services/geminiService';
+import { Share2, AlertTriangle, Wand2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -53,12 +52,14 @@ const App: React.FC = () => {
         const enhancedBase64 = await enhanceImageWithGemini(base64);
         setState(prev => ({ ...prev, currentStep: 'results', image: enhancedBase64 }));
       } catch (error) {
-        setState(prev => ({ ...prev, currentStep: 'results', error: "تعذر تحسين جودة الصورة. غالباً ما يكون السبب حجم الملف الكبير جداً أو ضعف الاتصال." }));
+        setState(prev => ({ 
+          ...prev, 
+          currentStep: 'results', 
+          error: "تعذر معالجة هذه الصورة. حاول مع صورة أخرى بحجم أصغر أو تأكد من جودة الاتصال." 
+        }));
       } finally {
         setLoading(false);
       }
-    } else if (mode === 'transform') {
-      setState(prev => ({ ...prev, currentStep: 'results', image: base64 }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', image: base64 }));
       setLoading(true);
@@ -67,28 +68,17 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error) {
-        setState(prev => ({ ...prev, currentStep: 'results', error: "حدث خطأ أثناء تحليل الصورة. حاول مع صورة أخرى بحجم أصغر." }));
+        setState(prev => ({ 
+          ...prev, 
+          currentStep: 'results', 
+          error: "حدث خطأ أثناء تحليل الصورة. يرجى المحاولة لاحقاً." 
+        }));
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const handleApplyStyle = async (style: ArtisticStyle) => {
-    if (!originalImage) return;
-    setState(prev => ({ ...prev, currentStep: 'transforming', error: null }));
-    setLoading(true);
-    try {
-      const transformedBase64 = await transformImageWithGemini(originalImage, style.instruction);
-      setState(prev => ({ ...prev, currentStep: 'results', image: transformedBase64 }));
-    } catch (error) {
-      setState(prev => ({ ...prev, currentStep: 'results', error: "تعذر تطبيق النمط الفني حالياً." }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fix: Implemented handleRefineDescription to process prompt adjustments via Gemini
   const handleRefineDescription = async (instruction: string) => {
     setIsRefining(true);
     try {
@@ -111,14 +101,14 @@ const App: React.FC = () => {
     if (!state.image) return;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'نتائج لومينا', text: 'تم إنشاء هذه الصورة بواسطة لومينا AI', url: window.location.href });
+        await navigator.share({ title: 'نتائج لومينا', text: 'تمت معالجة هذه الصورة بواسطة لومينا AI', url: window.location.href });
       }
     } catch (err) {}
   };
 
   if (apiKeyError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 font-sans text-right">
         <div className="bg-white dark:bg-gray-800 p-10 rounded-[2.5rem] shadow-2xl max-w-md text-center border border-gray-100 dark:border-gray-700">
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
           <h2 className="text-2xl font-bold mb-3">API Key Required</h2>
@@ -141,20 +131,16 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between gap-4 mb-6 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-md px-5 py-3 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className={`p-2.5 rounded-2xl ${
-                  state.toolMode === 'enhance' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
-                  state.toolMode === 'transform' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
-                  'bg-blue-100 dark:bg-blue-900/30 text-primary'
+                  state.toolMode === 'enhance' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/30 text-primary'
                 }`}>
-                  {state.toolMode === 'enhance' && <Wand2 className="w-5 h-5" />}
-                  {state.toolMode === 'transform' && <Palette className="w-5 h-5" />}
-                  {state.toolMode === 'analyze' && <Sparkles className="w-5 h-5" />}
+                  {state.toolMode === 'enhance' ? <Wand2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                 </div>
                 <div>
                   <h2 className="text-base font-bold">
-                    {state.toolMode === 'enhance' ? 'تحسين جودة الصورة' : state.toolMode === 'transform' ? 'استوديو الإبداع' : 'تحليل لومينا الذكي'}
+                    {state.toolMode === 'enhance' ? 'تحسين جودة الصورة' : 'تحليل لومينا الذكي'}
                   </h2>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {['analyzing', 'enhancing', 'transforming'].includes(state.currentStep) ? (
+                    {['analyzing', 'enhancing'].includes(state.currentStep) ? (
                       <span className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold animate-pulse">
                         <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
                       </span>
@@ -187,7 +173,7 @@ const App: React.FC = () => {
                   <ImageViewer 
                     imageSrc={state.image || originalImage || ''} 
                     originalSrc={originalImage}
-                    isEnhancing={['enhancing', 'transforming'].includes(state.currentStep)}
+                    isEnhancing={['enhancing'].includes(state.currentStep)}
                   />
                   
                   {state.currentStep === 'results' && !state.error && (
@@ -223,45 +209,23 @@ const App: React.FC = () => {
                     </div>
                   )}
                   
-                  {state.toolMode === 'transform' && (
-                    <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] p-6 shadow-2xl border border-gray-100 dark:border-gray-700">
-                      <ArtisticGallery onSelectStyle={handleApplyStyle} isLoading={loading} />
-                    </div>
-                  )}
-                  
                   {state.toolMode === 'enhance' && (
                     <div className="space-y-6 animate-slide-in">
-                      <div className="bg-gradient-to-br from-purple-600 to-blue-700 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                        <div className="flex items-center gap-4 mb-4 relative z-10">
-                           <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shadow-lg">
-                             <Sparkles className="w-6 h-6 text-yellow-300" />
+                      <div className="bg-gradient-to-br from-purple-600 to-blue-700 p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden h-full flex flex-col justify-center min-h-[400px]">
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                        <div className="flex items-center gap-5 mb-6 relative z-10">
+                           <div className="p-4 bg-white/20 rounded-3xl backdrop-blur-md shadow-lg">
+                             <Sparkles className="w-8 h-8 text-yellow-300" />
                            </div>
-                           <h3 className="text-xl font-bold">اكتمال التحسين!</h3>
+                           <h3 className="text-2xl font-bold">اكتمال التحسين!</h3>
                         </div>
-                        <p className="text-xs text-white/80 leading-relaxed mb-6">
-                           تمت استعادة التفاصيل الدقيقة ومعالجة الإضاءة باستخدام ذكاء لومينا. يمكنك الآن الانتقال لتحويل صورتك لعمل فني.
+                        <p className="text-sm text-white/80 leading-relaxed mb-10 relative z-10">
+                           لقد انتهينا من معالجة الصورة بأحدث تقنيات الذكاء الاصطناعي. تمت استعادة التفاصيل الدقيقة، معالجة الإضاءة، وإزالة التشويش بكسل بكسل. الصورة الآن جاهزة للاستخدام الاحترافي.
                         </p>
-                        <div className="p-4 bg-black/20 rounded-2xl border border-white/10 text-[10px] flex items-center gap-3">
-                           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                           جاهزة للتصدير بجودة احترافية
+                        <div className="p-6 bg-black/20 rounded-3xl border border-white/10 text-xs flex items-center gap-4 relative z-10">
+                           <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
+                           <span>النتيجة جاهزة للتنزيل بجودة محسنة.</span>
                         </div>
-                      </div>
-
-                      <div 
-                         onClick={() => setState(prev => ({ ...prev, toolMode: 'transform' }))}
-                         className="p-6 bg-white dark:bg-gray-800 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer hover:border-orange-500 transition-all group"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-orange-600">
-                             <Palette className="w-6 h-6" />
-                          </div>
-                          <div className="text-right">
-                             <p className="text-xs font-bold">تجربة النمط الفني</p>
-                             <p className="text-[10px] text-gray-500 mt-1">حول صورتك المحسنة للوحة فنية</p>
-                          </div>
-                        </div>
-                        <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-orange-500 transition-all" />
                       </div>
                     </div>
                   )}

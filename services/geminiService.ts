@@ -63,6 +63,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+  // Simplified prompt to reduce processing time and complexity
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
@@ -74,7 +75,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
           },
         },
         {
-          text: 'Super-resolve and professionally enhance this image. Remove noise, sharpen edges, recover lost textures, and increase overall clarity significantly. Output a high-fidelity, professional version while strictly maintaining the original colors and geometry.',
+          text: 'Enhance this image: remove noise, sharpen details, and increase clarity. Keep original geometry and colors.',
         },
       ],
     },
@@ -88,40 +89,7 @@ export const enhanceImageWithGemini = async (base64Image: string): Promise<strin
     }
   }
 
-  throw new Error("لم يتم إرجاع أي صورة من الخادم");
-};
-
-export const transformImageWithGemini = async (base64Image: string, styleInstruction: string): Promise<string> => {
-  const mimeType = getMimeType(base64Image);
-  const cleanBase64 = cleanBase64Data(base64Image);
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: cleanBase64,
-            mimeType: mimeType,
-          },
-        },
-        {
-          text: `Transform this image into the following style: ${styleInstruction}. Maintain composition but change rendering style.`,
-        },
-      ],
-    },
-  });
-
-  if (response.candidates && response.candidates[0]?.content?.parts) {
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-  }
-
-  throw new Error("فشلت عملية التحويل الفني");
+  throw new Error("No image data returned from API");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
