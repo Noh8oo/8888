@@ -64,9 +64,9 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           // 1. نسخة العرض (Display): جودة عالية ليرى المستخدم الصورة بوضوح
           const displayBase64 = resizeImage(img, 1500, 0.90);
 
-          // 2. نسخة الـ API (السرعة القصوى - الحيلة الذكية): 
+          // 2. نسخة الـ API (الحيلة الذكية): 
           // تم تقليل الحجم إلى 768 بكسل والجودة 0.5 (50%)
-          // هذا يقلل حجم البيانات بنسبة 90% مما يضمن وصول الطلب لجوجل فوراً دون انقطاع
+          // هذا يقلل حجم البيانات بنسبة 90% ويضمن وصول الطلب لجوجل فوراً دون مشاكل Vercel Timeout
           const apiBase64 = resizeImage(img, 768, 0.50);
 
           onImageSelect(displayBase64, apiBase64, mode);
@@ -97,7 +97,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
       {isProcessingLocal && (
         <div className="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري ضغط وتجهيز الصورة...</p>
+          <p className="font-bold text-dark dark:text-white text-lg">جاري ضغط وتجهيز الصورة ذكياً...</p>
           <p className="text-sm text-gray-500 mt-2">نقوم بتقليل حجم البيانات لضمان سرعة الاتصال المباشر</p>
         </div>
       )}
