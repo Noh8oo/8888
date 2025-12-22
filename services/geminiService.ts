@@ -7,8 +7,12 @@ const getMimeType = (base64: string): string => {
   return match ? match[1] : 'image/jpeg';
 };
 
+// دالة تنظيف أكثر قوة تضمن إزالة أي ترويسة
 const cleanBase64Data = (base64: string): string => {
-  return base64.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, '');
+  if (base64.includes(',')) {
+    return base64.split(',')[1];
+  }
+  return base64;
 };
 
 const validateApiKey = () => {
@@ -20,10 +24,12 @@ const validateApiKey = () => {
 };
 
 const checkPayloadSize = (base64: string) => {
+  // حساب تقريبي للحجم بالبايت
   const sizeInBytes = (base64.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
   
-  if (sizeInMB > 4.5) {
+  // رفع الحد قليلاً لكن الضغط في Hero.tsx سيضمن أننا أقل بكثير
+  if (sizeInMB > 9) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
 };
@@ -46,7 +52,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash", // موديل سريع جداً للتحليل
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
@@ -95,21 +101,21 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    // 1. تصحيح: استخدام اسم الموديل gemini-2.5-flash-image-preview
-    // 2. تصحيح: إرسال الصورة أولاً ثم النص (Critical for Img2Img)
+    // استخدام الموديل المستقر المخصص للصور
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview', 
+      model: 'gemini-2.5-flash-image', 
       contents: {
         parts: [
-          { inlineData: { data: cleanBase64, mimeType } }, // Image must be first usually
+          { inlineData: { data: cleanBase64, mimeType } }, // الصورة أولاً (مهم جداً)
           { text: stylePrompt },
         ],
       },
       config: { 
-        safetySettings: SAFETY_SETTINGS 
+        safetySettings: SAFETY_SETTINGS,
       }
     });
 
+    // استخراج الصورة من الاستجابة
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
@@ -127,7 +133,6 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
     if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
     
-    // إذا كان الموديل غير مدعوم، نحاول بالموديل المستقر كخطة بديلة
     if (e.message.includes("not found") || e.message.includes("404")) {
          throw new Error("ERROR_MODEL_NOT_FOUND");
     }
