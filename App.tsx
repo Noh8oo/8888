@@ -4,13 +4,12 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
-import { ChatWidget } from './components/ChatWidget';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
 import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette, Zap, ScanFace } from 'lucide-react';
 
-// تم استبدال القائمة بـ Prompt واحد مخصص للتحسين
-const ENHANCE_PROMPT = "Super resolution, upscale image, sharpen details, clarify pixels, remove blur, de-noise, high fidelity, 4k quality, photorealistic, maintain original colors and composition exactly.";
+// تحسين الأمر ليكون أكثر دقة في الترميم والحفاظ على الهوية
+const ENHANCE_PROMPT = "Restore image quality, de-blur, sharpen details, fix pixelation, high definition, 8k resolution, photorealistic, clean edges. Maintain exact original composition and colors. Do not change content.";
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -110,38 +109,53 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
+    const msg = errorMsg || "";
+
+    // Network Errors (Fetch)
+    if (msg.includes("ERROR_NETWORK_FETCH") || msg.includes("Failed to fetch")) {
+      return "فشل الاتصال بالخادم. يرجى التأكد من اتصالك بالإنترنت، أو تعطيل مانع الإعلانات (AdBlock) الذي قد يحظر الاتصال بـ Google API.";
+    }
+
     // API Key Errors
-    if (errorMsg.includes("ERROR_API_KEY_MISSING")) {
-      return "لم يتم العثور على مفتاح API صالح. يرجى التحقق من إعدادات البيئة.";
+    if (msg.includes("ERROR_API_KEY_MISSING") || msg.includes("API key not valid") || msg.includes("403")) {
+      return "مشكلة في تصريح الدخول (API Key). إذا كنت المالك، تأكد من إضافة المفتاح في إعدادات البيئة (Environment Variables) في Vercel.";
     }
     
     // Size Errors
-    if (errorMsg.includes("ERROR_IMAGE_TOO_LARGE") || errorMsg.includes("413")) {
-      return "حجم الصورة كبير جداً للمعالجة (أكبر من الحد المسموح). يرجى استخدام صورة أصغر حجماً.";
+    if (msg.includes("ERROR_IMAGE_TOO_LARGE") || msg.includes("413") || msg.includes("Too Large")) {
+      return "حجم الصورة كبير جداً للمعالجة. يرجى استخدام صورة أصغر حجماً (أقل من 9MB).";
     }
 
     // Quota/Rate Limit Errors
-    if (errorMsg.includes("ERROR_QUOTA_EXCEEDED") || errorMsg.includes("429")) {
-      return "الخدمة مشغولة جداً حالياً أو تم استنفاد الرصيد المجاني. يرجى المحاولة بعد دقيقة.";
+    if (msg.includes("ERROR_QUOTA_EXCEEDED") || msg.includes("429") || msg.includes("Quota")) {
+      return "تم تجاوز حد الاستخدام المسموح به للخدمة حالياً. يرجى الانتظار قليلاً والمحاولة مرة أخرى.";
     }
 
     // Model Availability Errors (Geo-blocking or Deprecation)
-    if (errorMsg.includes("ERROR_MODEL_NOT_FOUND") || errorMsg.includes("404") || errorMsg.includes("not found")) {
-      return "نموذج تحسين الصور (Gemini 2.5) غير متاح في منطقتك الجغرافية حالياً، أو أن مفتاح API لا يملك صلاحية الوصول إليه.";
+    if (msg.includes("ERROR_MODEL_NOT_FOUND") || msg.includes("404") || msg.includes("not found")) {
+      return "نموذج الذكاء الاصطناعي غير متاح حالياً. قد يكون السبب قيود جغرافية أو مشاكل في الخدمة.";
     }
 
     // Safety Filters
-    if (errorMsg.includes("SAFETY") || errorMsg.includes("BLOCKED") || errorMsg.includes("HarmCategory")) {
-      return "تم إيقاف المعالجة لأن الصورة قد تحتوي على محتوى لا يتوافق مع معايير السلامة الخاصة بـ Google.";
+    if (msg.includes("SAFETY") || msg.includes("BLOCKED") || msg.includes("HarmCategory")) {
+      return "تم إيقاف المعالجة لأن الصورة قد تحتوي على محتوى يتعارض مع معايير السلامة.";
     }
 
-    // Empty Responses
-    if (errorMsg.includes("NO_IMAGE_RETURNED") || errorMsg.includes("EMPTY_RESPONSE")) {
-      return "لم يقم النموذج بإرجاع نتيجة. قد تكون الصورة غير واضحة أو معقدة للغاية.";
+    // Refusals
+    if (msg.includes("NO_IMAGE_RETURNED") || msg.includes("EMPTY_RESPONSE")) {
+      return "لم يتمكن النموذج من تحسين هذه الصورة تحديداً. قد تكون الصورة غير واضحة جداً أو معقدة.";
+    }
+
+    // Generic Generation Failed
+    if (msg.includes("ERROR_GENERATION_FAILED")) {
+      if (msg.includes("NO_IMAGE_RETURNED")) {
+         return "لم يتمكن النموذج من توليد الصورة. حاول مرة أخرى أو جرب صورة مختلفة.";
+      }
+      return "فشلت عملية التوليد لسبب غير محدد. يرجى المحاولة مرة أخرى.";
     }
 
     // Generic Fallback
-    return `حدث خطأ غير متوقع أثناء المعالجة. (${errorMsg.substring(0, 40)}...)`;
+    return `حدث خطأ غير متوقع: ${msg.substring(0, 100)}`;
   };
 
   return (
@@ -163,6 +177,9 @@ const App: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
                     {getFriendlyErrorMessage(state.error)}
                   </p>
+                </div>
+                <div className="text-xs text-gray-400 font-mono mt-2 dir-ltr">
+                  Code: {state.error.substring(0, 50)}...
                 </div>
                 <button 
                   onClick={handleReset} 
@@ -292,8 +309,6 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
-
-      {state.toolMode === 'analyze' && state.currentStep === 'results' && !state.error && <ChatWidget imageAnalysis={state.analysis} />}
     </div>
   );
 };

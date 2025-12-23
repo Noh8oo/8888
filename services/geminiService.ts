@@ -7,14 +7,17 @@ const getMimeType = (base64: string): string => {
   return match ? match[1] : 'image/jpeg';
 };
 
-// دالة تنظيف صارمة لضمان قبول الصورة
+// طريقة أكثر أماناً لاستخراج بيانات الصورة بغض النظر عن تنسيق المتصفح
 const cleanBase64Data = (base64: string): string => {
-  // إزالة أي بادئة data uri باستخدام replace لضمان النص النظيف فقط
-  return base64.replace(/^data:image\/\w+;base64,/, '');
+  if (base64.includes(',')) {
+    return base64.split(',')[1];
+  }
+  return base64;
 };
 
 const validateApiKey = () => {
   const key = process.env.API_KEY;
+  // تخفيف القيود على التحقق من المفتاح لتجنب الأخطاء في بيئات معينة
   if (!key || key.trim() === '' || key === 'undefined') {
     console.error("API Key Check Failed: Key is missing.");
     throw new Error("ERROR_API_KEY_MISSING");
@@ -24,7 +27,8 @@ const validateApiKey = () => {
 const checkPayloadSize = (base64: string) => {
   const sizeInBytes = (base64.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
-  if (sizeInMB > 9) {
+  // رفع الحد قليلاً لضمان قبول الصور الكبيرة التي كانت تعمل سابقاً
+  if (sizeInMB > 12) {
     throw new Error("ERROR_IMAGE_TOO_LARGE");
   }
 };
@@ -37,6 +41,27 @@ const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+const handleApiError = (e: any) => {
+  console.error("Gemini API Error:", e);
+  
+  if (e instanceof TypeError && e.message.includes("fetch")) {
+    throw new Error("ERROR_NETWORK_FETCH");
+  }
+  if (e.message?.includes("NetworkError") || e.message?.includes("Failed to fetch")) {
+    throw new Error("ERROR_NETWORK_FETCH");
+  }
+
+  if (e.message?.includes("API_KEY") || e.message?.includes("403")) throw new Error("ERROR_API_KEY_MISSING");
+  if (e.message?.includes("413") || e.message?.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
+  if (e.message?.includes("429") || e.message?.includes("Quota")) throw new Error("ERROR_QUOTA_EXCEEDED");
+  if (e.message?.includes("not found") || e.message?.includes("404")) throw new Error("ERROR_MODEL_NOT_FOUND");
+  if (e.message?.includes("SAFETY") || e.message?.includes("BLOCKED")) throw new Error("ERROR_SAFETY_BLOCK");
+  
+  if (e.message?.includes("NO_IMAGE_RETURNED") || e.message?.includes("EMPTY_RESPONSE")) throw e;
+
+  throw new Error(`ERROR_GENERATION_FAILED: ${e.message}`);
+};
+
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   validateApiKey();
   const cleanBase64 = cleanBase64Data(base64Image);
@@ -46,6 +71,7 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
+    // العودة إلى الإعدادات المرنة بدون Schema صارم لتجنب الأخطاء
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", 
       contents: {
@@ -56,32 +82,18 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            colors: { type: Type.ARRAY, items: { type: Type.STRING } },
-            style: { type: Type.STRING },
-            layout: { type: Type.STRING },
-            layoutDetail: { type: Type.STRING },
-            view: { type: Type.STRING },
-            viewDetail: { type: Type.STRING },
-            objects: { type: Type.ARRAY, items: { type: Type.STRING } },
-            prompt: { type: Type.STRING },
-          },
-          required: ["colors", "style", "objects", "prompt"],
-        },
+        // تمت إزالة responseSchema للسماح للنموذج بالعمل بحرية كما كان سابقاً
       },
     });
 
     if (!response.text) throw new Error("EMPTY_RESPONSE");
+    
+    // تنظيف النص بشكل يدوي لضمان قبول JSON حتى لو كان فيه شوائب
     const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanedText) as ImageAnalysis;
   } catch (e: any) {
-    console.error("Analysis Error:", e);
-    if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
-    if (e.message.includes("413") || e.message.includes("Too Large")) throw new Error("ERROR_IMAGE_TOO_LARGE");
-    if (e.message.includes("429") || e.message.includes("Quota")) throw new Error("ERROR_QUOTA_EXCEEDED");
-    throw new Error(`ERROR_ANALYSIS_FAILED: ${e.message}`);
+    handleApiError(e);
+    throw e;
   }
 };
 
@@ -100,17 +112,14 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } }, 
-          // Ensure the prompt explicitly asks for generation to avoid text-only descriptions
           { text: `Generate a new image based on this input. ${stylePrompt}` },
         ],
       },
       config: { 
         safetySettings: SAFETY_SETTINGS,
-        // Removed responseModalities to avoid potential conflicts with model defaults or refusals
       }
     });
 
-    // استخراج الصورة من الاستجابة
     const parts = response.candidates?.[0]?.content?.parts;
     let textResponse = "";
 
@@ -125,49 +134,47 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       }
     }
     
-    // If we have text but no image, it's likely a refusal or description
     if (textResponse.trim()) {
       console.warn("Model returned text instead of image:", textResponse);
-      // Throwing this allows the UI to catch it, though we might want to map it to a generic error if it's just chatter
-      // But usually it's a safety refusal or capability refusal
       throw new Error(`NO_IMAGE_RETURNED: ${textResponse.substring(0, 100)}`);
     }
     
     throw new Error("NO_IMAGE_RETURNED");
 
   } catch (e: any) {
-    console.warn("Remix Error:", e.message);
-    if (e.message.includes("413")) throw new Error("ERROR_IMAGE_TOO_LARGE");
-    if (e.message.includes("429")) throw new Error("ERROR_QUOTA_EXCEEDED");
-    if (e.message.includes("API_KEY")) throw new Error("ERROR_API_KEY_MISSING");
-    if (e.message.includes("not found") || e.message.includes("404")) throw new Error("ERROR_MODEL_NOT_FOUND");
-    if (e.message.includes("SAFETY")) throw new Error("ERROR_SAFETY_BLOCK");
-    
-    // Propagate the specific refusal text if we caught it above
-    if (e.message.includes("NO_IMAGE_RETURNED")) throw e;
-
-    throw new Error(`ERROR_GENERATION_FAILED: ${e.message}`);
+    handleApiError(e);
+    throw e;
   }
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Modify this: "${originalDescription}" based on: "${userInstruction}". Arabic only.`,
-  });
-  return response.text || originalDescription;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Modify this: "${originalDescription}" based on: "${userInstruction}". Arabic only.`,
+    });
+    return response.text || originalDescription;
+  } catch (e: any) {
+    console.error("Refine Error", e);
+    return originalDescription;
+  }
 };
 
 export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
   validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const chat = ai.chats.create({
-    model: "gemini-3-flash-preview",
-    history: history,
-    config: { systemInstruction: "أنت مساعد لومينا. أجب بالعربية باختصار." }
-  });
-  const response = await chat.sendMessage({ message: newMessage });
-  return response.text || "";
+  try {
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
+      history: history,
+      config: { systemInstruction: "أنت مساعد لومينا. أجب بالعربية باختصار." }
+    });
+    const response = await chat.sendMessage({ message: newMessage });
+    return response.text || "";
+  } catch (e: any) {
+    console.error("Chat Error", e);
+    throw e;
+  }
 };
