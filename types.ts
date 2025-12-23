@@ -10,13 +10,6 @@ export interface ImageAnalysis {
   prompt: string;
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'model';
-  text: string;
-  timestamp: Date;
-}
-
 // استعادة وضع الريمكس (الاستوديو)
 export type ToolMode = 'analyze' | 'remix' | null;
 
@@ -34,4 +27,11 @@ export interface RemixStyle {
   icon: string;
   prompt: string;
   color: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  timestamp: Date;
 }
