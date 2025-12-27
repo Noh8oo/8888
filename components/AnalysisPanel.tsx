@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { ImageAnalysis } from '../types';
-import { Copy, Check, Palette, Layout, Camera, Eye, Sparkles, PenTool, ArrowLeft, Film, Sun, Minimize, Zap, Moon, Aperture, Wand2, ChevronDown, ChevronUp, Box, RefreshCw, Feather, Monitor,  Hexagon, CloudRain, Layers,  Ghost } from 'lucide-react';
+import { Copy, Check, Palette, Layout, Camera, Eye, Sparkles, PenTool, ArrowLeft, Film, Sun, Minimize, Zap, Moon, Aperture, Wand2, ChevronDown, ChevronUp, Box, RefreshCw, Feather, Monitor,  Hexagon, CloudRain, Layers, Ghost, Maximize2, Minimize2, Quote } from 'lucide-react';
 import { Button } from './Button';
 
 interface AnalysisPanelProps {
@@ -39,7 +40,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const [instruction, setInstruction] = useState('');
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
-  // State for displayed filters, initialized with the first 6
+  // State for displayed filters
   const [displayedFilters, setDisplayedFilters] = useState(ALL_SMART_FILTERS.slice(0, 6));
   const [isShuffling, setIsShuffling] = useState(false);
 
@@ -64,10 +65,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
   const handleShuffleFilters = () => {
     setIsShuffling(true);
-    // Shuffle animation duration
     setTimeout(() => setIsShuffling(false), 500);
-
-    // Randomize array
     const shuffled = [...ALL_SMART_FILTERS].sort(() => 0.5 - Math.random());
     setDisplayedFilters(shuffled.slice(0, 6));
   };
@@ -75,7 +73,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   if (loading) {
     return (
       <div className="flex flex-col gap-6 animate-slide-in">
-        {/* Skeleton: Colors Section */}
+        {/* Skeleton UI remains unchanged */}
         <div className="space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
           <div className="flex flex-wrap gap-3">
@@ -84,38 +82,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             ))}
           </div>
         </div>
-
-        {/* Skeleton: Objects Section */}
         <div className="space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
           <div className="flex flex-wrap gap-2">
              <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
              <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-             <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
           </div>
         </div>
-
-        {/* Skeleton: Specs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm h-24 flex flex-col justify-center space-y-2">
-             <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-             <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
-          </div>
-          <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm h-24 flex flex-col justify-center space-y-2">
-             <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-             <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
-          </div>
-          <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm h-24 flex flex-col justify-center space-y-2 col-span-full">
-             <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
-             <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse"></div>
-          </div>
-        </div>
-
-        {/* Skeleton: Prompt Section */}
-        <div className="space-y-3 pt-2">
-           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-40 animate-pulse"></div>
-           <div className="w-full h-[120px] bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
-           <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
+          <div className="p-4 rounded-xl bg-white dark:bg-gray-800 shadow-sm h-24 animate-pulse"></div>
+          <div className="p-4 rounded-xl bg-white dark:bg-gray-800 shadow-sm h-24 animate-pulse"></div>
         </div>
       </div>
     );
@@ -136,7 +112,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               <div 
                 className="w-12 h-12 rounded-full shadow-sm border border-black/5 dark:border-white/10 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-md hover:ring-2 hover:ring-white dark:hover:ring-gray-300 hover:ring-offset-2 dark:hover:ring-offset-gray-800"
                 style={{ backgroundColor: color }}
-                title={color}
               />
               <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity font-mono bg-white dark:bg-gray-900 dark:text-gray-300 px-1 rounded shadow-sm whitespace-nowrap z-10 pointer-events-none">
                 {color}
@@ -167,64 +142,85 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
       {/* Specs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Style Card (No expansion) */}
-        <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1 group">
-          <div className="flex items-center gap-2 mb-2 text-primary">
-            <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xs font-bold uppercase">النمط الفني</span>
+        {/* Style Card */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1 group">
+          <div className="flex items-center gap-3 mb-3 text-primary">
+            <div className="p-2 bg-primary/5 rounded-lg group-hover:bg-primary/10 transition-colors">
+              <Eye className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider">النمط الفني</span>
           </div>
-          <p className="font-medium text-dark dark:text-white">{analysis.style}</p>
+          <p className="font-bold text-lg text-dark dark:text-white leading-tight">{analysis.style}</p>
         </div>
         
-        {/* Layout Card (Expandable) */}
-        <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1 group relative">
-           <div className="flex items-center gap-2 mb-2 text-primary">
-            <Layout className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xs font-bold uppercase">التخطيط</span>
-          </div>
-          <p className="font-medium text-dark dark:text-white">{analysis.layout}</p>
-          
-          {analysis.layoutDetail && (
-            <div className="mt-2">
-              <button 
-                onClick={() => toggleSection('layout')}
-                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary dark:hover:text-primary transition-colors focus:outline-none"
-              >
-                 <span>{expandedSection === 'layout' ? 'إخفاء التفاصيل' : 'اقرأ المزيد'}</span>
-                 {expandedSection === 'layout' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {/* Layout Card - ENHANCED */}
+        <div 
+          className={`relative p-5 rounded-2xl border transition-all duration-500 ease-in-out cursor-pointer group 
+            ${expandedSection === 'layout' 
+              ? 'col-span-full bg-blue-50/50 dark:bg-blue-900/10 border-primary/30 shadow-lg ring-1 ring-primary/20' 
+              : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1'
+            }`}
+          onClick={() => toggleSection('layout')}
+        >
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3 mb-3 text-primary">
+              <div className={`p-2 rounded-lg transition-colors duration-300 ${expandedSection === 'layout' ? 'bg-primary text-white' : 'bg-primary/5 group-hover:bg-primary/10'}`}>
+                <Layout className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider">التكوين والتخطيط</span>
+            </div>
+            {analysis.layoutDetail && (
+              <button className="text-gray-400 hover:text-primary transition-colors">
+                 {expandedSection === 'layout' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
-              {expandedSection === 'layout' && (
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-300 leading-relaxed animate-fade-in">
-                  {analysis.layoutDetail}
+            )}
+          </div>
+
+          <p className={`font-bold text-lg text-dark dark:text-white leading-tight transition-all ${expandedSection === 'layout' ? 'text-primary dark:text-primary mb-4' : ''}`}>
+            {analysis.layout}
+          </p>
+          
+          {/* Animated Detail Section */}
+          <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${expandedSection === 'layout' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+            <div className="overflow-hidden">
+              {analysis.layoutDetail && (
+                <div className="relative mt-2 p-5 bg-white dark:bg-gray-900 rounded-xl border-l-4 border-primary text-sm text-gray-600 dark:text-gray-300 leading-relaxed shadow-sm">
+                  <Quote className="absolute top-4 right-4 w-8 h-8 text-gray-100 dark:text-gray-800 transform -scale-x-100" />
+                  <div className="relative z-10">
+                    <h5 className="font-bold text-dark dark:text-white mb-2 text-xs uppercase opacity-70">تفاصيل تقنية</h5>
+                    {analysis.layoutDetail}
+                  </div>
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* View Card (Expandable) */}
-        <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1 col-span-full group">
-           <div className="flex items-center gap-2 mb-2 text-primary">
-            <Camera className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xs font-bold uppercase">زاوية الرؤية</span>
-          </div>
-          <p className="font-medium text-dark dark:text-white">{analysis.view}</p>
-          
-          {analysis.viewDetail && (
-            <div className="mt-2">
+        {/* View Card */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1 group col-span-full md:col-span-2">
+           <div className="flex items-center justify-between mb-3">
+             <div className="flex items-center gap-3 text-primary">
+              <div className="p-2 bg-primary/5 rounded-lg group-hover:bg-primary/10 transition-colors">
+                <Camera className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider">زاوية الرؤية</span>
+            </div>
+            {analysis.viewDetail && (
               <button 
-                onClick={() => toggleSection('view')}
-                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary dark:hover:text-primary transition-colors focus:outline-none"
+                onClick={(e) => { e.stopPropagation(); toggleSection('view'); }}
+                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary dark:hover:text-primary transition-colors bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-full"
               >
-                 <span>{expandedSection === 'view' ? 'إخفاء التفاصيل' : 'اقرأ المزيد'}</span>
+                 <span>{expandedSection === 'view' ? 'إخفاء' : 'المزيد'}</span>
                  {expandedSection === 'view' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
-              {expandedSection === 'view' && (
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-300 leading-relaxed animate-fade-in">
-                  {analysis.viewDetail}
-                </div>
-              )}
-            </div>
+            )}
+          </div>
+          <p className="font-bold text-lg text-dark dark:text-white leading-tight">{analysis.view}</p>
+          
+          {analysis.viewDetail && expandedSection === 'view' && (
+             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 leading-relaxed animate-fade-in bg-gray-50/50 dark:bg-gray-900/50 p-3 rounded-lg">
+                {analysis.viewDetail}
+             </div>
           )}
         </div>
       </div>
@@ -253,7 +249,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <div className={`w-full min-h-[140px] p-4 bg-gray-900 dark:bg-black text-gray-300 rounded-xl font-mono text-sm leading-relaxed shadow-inner transition-opacity ${isRefining ? 'opacity-50' : 'opacity-100'}`}>
              {currentDescription}
           </div>
-
           {isRefining && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full">
