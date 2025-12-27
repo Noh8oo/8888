@@ -4,12 +4,11 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
-import { AppState, ToolMode, RemixStyle } from './types';
+import { AppState, ToolMode } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette, Zap, ScanFace } from 'lucide-react';
+import { Share2, Download, Check, AlertCircle, ArrowLeft, Zap } from 'lucide-react';
 
-// تحسين الأمر ليكون أكثر دقة في الترميم والحفاظ على الهوية
-const ENHANCE_PROMPT = "Restore image quality, de-blur, sharpen details, fix pixelation, high definition, 8k resolution, photorealistic, clean edges. Maintain exact original composition and colors. Do not change content.";
+const ENHANCE_PROMPT = "High-definition restoration, sharpen details, remove artifacts, 8k resolution, photorealistic, maintain original composition and lighting.";
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -25,28 +24,18 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  
   const [status, setStatus] = useState<string>("");
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
-
-  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
   const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
     setOriginalImage(displayBase64);
     setApiImage(apiBase64); 
     
-    if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
-
     if (mode === 'remix') {
-      setStatus("الصورة جاهزة للتحسين");
-      // الانتقال لمرحلة التأكيد قبل البدء
       setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
@@ -54,11 +43,9 @@ const App: React.FC = () => {
       setStatus("جاري تحليل الصورة...");
       try {
         const analysis = await analyzeImageWithGemini(apiBase64);
-        setStatus("تم التحليل بنجاح!");
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
-        setStatus("حدث خطأ في الاتصال");
         setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
       } finally {
         setLoading(false);
@@ -68,19 +55,14 @@ const App: React.FC = () => {
 
   const handleEnhanceClick = async () => {
     if (!apiImage) return;
-    
-    setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
     setLoading(true);
-    setStatus("جاري معالجة البكسلات وتوضيح الصورة...");
+    setStatus("جاري توضيح البكسلات...");
+    setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
 
     try {
-      // الاتصال المباشر للتحسين
-      const remixedImage = await remixImageWithGemini(apiImage, ENHANCE_PROMPT);
-      setStatus("تم التحسين بنجاح!");
-      setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
+      const result = await remixImageWithGemini(apiImage, ENHANCE_PROMPT);
+      setState(prev => ({ ...prev, currentStep: 'results', image: result }));
     } catch (error: any) {
-      console.error("Enhance Error:", error);
-      setStatus("فشل التحسين");
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -92,8 +74,8 @@ const App: React.FC = () => {
     try {
       const refined = await refineDescriptionWithGemini(currentDescription, instruction);
       setCurrentDescription(refined);
-    } catch (error) {
-      console.error(error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsRefining(false);
     }
@@ -103,208 +85,71 @@ const App: React.FC = () => {
     setState({ currentStep: 'upload', toolMode: null, image: null, analysis: null, error: null });
     setOriginalImage(null);
     setApiImage(null);
-    setCurrentDescription('');
     setLoading(false);
-    setStatus("");
-  };
-
-  const getFriendlyErrorMessage = (errorMsg: string) => {
-    const msg = errorMsg || "";
-
-    // Network Errors (Fetch)
-    if (msg.includes("ERROR_NETWORK_FETCH") || msg.includes("Failed to fetch")) {
-      return "فشل الاتصال بالخادم. يرجى التأكد من اتصالك بالإنترنت، أو تعطيل مانع الإعلانات (AdBlock) الذي قد يحظر الاتصال بـ Google API.";
-    }
-
-    // API Key Errors
-    if (msg.includes("ERROR_API_KEY_MISSING") || msg.includes("API key not valid") || msg.includes("403")) {
-      return "مشكلة في تصريح الدخول (API Key). إذا كنت المالك، تأكد من إضافة المفتاح في إعدادات البيئة (Environment Variables) في Vercel.";
-    }
-    
-    // Size Errors
-    if (msg.includes("ERROR_IMAGE_TOO_LARGE") || msg.includes("413") || msg.includes("Too Large")) {
-      return "حجم الصورة كبير جداً للمعالجة. يرجى استخدام صورة أصغر حجماً (أقل من 9MB).";
-    }
-
-    // Quota/Rate Limit Errors
-    if (msg.includes("ERROR_QUOTA_EXCEEDED") || msg.includes("429") || msg.includes("Quota")) {
-      return "تم تجاوز حد الاستخدام المسموح به للخدمة حالياً. يرجى الانتظار قليلاً والمحاولة مرة أخرى.";
-    }
-
-    // Model Availability Errors (Geo-blocking or Deprecation)
-    if (msg.includes("ERROR_MODEL_NOT_FOUND") || msg.includes("404") || msg.includes("not found")) {
-      return "نموذج الذكاء الاصطناعي غير متاح حالياً. قد يكون السبب قيود جغرافية أو مشاكل في الخدمة.";
-    }
-
-    // Safety Filters
-    if (msg.includes("SAFETY") || msg.includes("BLOCKED") || msg.includes("HarmCategory")) {
-      return "تم إيقاف المعالجة لأن الصورة قد تحتوي على محتوى يتعارض مع معايير السلامة.";
-    }
-
-    // Refusals
-    if (msg.includes("NO_IMAGE_RETURNED") || msg.includes("EMPTY_RESPONSE")) {
-      return "لم يتمكن النموذج من تحسين هذه الصورة تحديداً. قد تكون الصورة غير واضحة جداً أو معقدة.";
-    }
-
-    // Generic Generation Failed
-    if (msg.includes("ERROR_GENERATION_FAILED")) {
-      if (msg.includes("NO_IMAGE_RETURNED")) {
-         return "لم يتمكن النموذج من توليد الصورة. حاول مرة أخرى أو جرب صورة مختلفة.";
-      }
-      return "فشلت عملية التوليد لسبب غير محدد. يرجى المحاولة مرة أخرى.";
-    }
-
-    // Generic Fallback
-    return `حدث خطأ غير متوقع: ${msg.substring(0, 100)}`;
   };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300 font-sans">
-      <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} highlightSupport={state.currentStep === 'results'} />
+      <Header isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)} highlightSupport={state.currentStep === 'results'} />
       
-      <main className="container mx-auto px-4 py-6 md:py-10">
+      <main className="container mx-auto px-4 py-10">
         {state.currentStep === 'upload' && <Hero onImageSelect={handleImageSelect} />}
 
         {state.currentStep !== 'upload' && (
-          <div className="max-w-[1600px] mx-auto">
+          <div className="max-w-6xl mx-auto">
             {state.error ? (
-              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
-                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
-                  <AlertCircle className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">عذراً، لم تكتمل العملية</h3>
-                <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
-                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
-                    {getFriendlyErrorMessage(state.error)}
-                  </p>
-                </div>
-                <div className="text-xs text-gray-400 font-mono mt-2 dir-ltr">
-                  Code: {state.error.substring(0, 50)}...
-                </div>
-                <button 
-                  onClick={handleReset} 
-                  className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
-                >
-                  العودة والمحاولة مرة أخرى
-                </button>
+              <div className="text-center p-10 bg-red-50 dark:bg-red-900/10 rounded-[2rem] border border-red-100">
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-red-600 mb-2">فشلت العملية</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">{state.error}</p>
+                <button onClick={handleReset} className="px-8 py-3 bg-primary text-white rounded-xl font-bold">العودة للبداية</button>
               </div>
             ) : (
-              <>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-xl px-6 py-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-xl">
-                  <div className="flex items-center gap-5">
-                    <div className={`p-4 rounded-[1.5rem] shadow-lg ${
-                      state.toolMode === 'remix' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
-                    }`}>
-                      {state.toolMode === 'remix' ? <Zap className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">
-                        {state.toolMode === 'remix' ? 'توضيح الصورة' : 'تحليل لومينا'}
-                      </h2>
-                      <div className="flex items-center gap-2 mt-1">
-                        {['analyzing', 'processing'].includes(state.currentStep) ? (
-                          <div className="flex flex-col items-start">
-                             <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                               <RefreshCw className="w-3 h-3 animate-spin" /> 
-                               {status}
-                             </span>
-                          </div>
-                        ) : state.currentStep === 'style-selection' ? (
-                          <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold px-3 py-1 rounded-full">
-                            <Zap className="w-3 h-3" /> الصورة جاهزة
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
-                            <Check className="w-3 h-3" /> تم بنجاح
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-fade-in">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-4">
+                     <button onClick={handleReset} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors">
+                       <ArrowLeft className="w-4 h-4" /> العودة
+                     </button>
+                     <div className="text-xs font-bold text-gray-400">{status}</div>
                   </div>
-                  
-                  <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm border border-gray-100 dark:border-gray-600 flex items-center gap-3 shadow-md hover:scale-105 active:scale-95 transition-all">
-                    <ArrowLeft className="w-5 h-5" /> العودة للبداية
-                  </button>
+                  <ImageViewer 
+                    imageSrc={state.image || originalImage || ''} 
+                    originalSrc={originalImage}
+                    isEnhancing={loading && state.currentStep === 'processing'}
+                  />
+                  {state.currentStep === 'results' && (
+                    <div className="flex gap-4">
+                      <a href={state.image || ''} download="lumina_result.png" className="flex-1 bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
+                        <Download className="w-5 h-5" /> تحميل
+                      </a>
+                      <button className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl text-gray-600 dark:text-gray-300">
+                        <Share2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10">
-                  <div className="space-y-8">
-                    <ImageViewer 
-                      imageSrc={state.image || originalImage || ''} 
-                      originalSrc={originalImage}
-                      isEnhancing={['processing'].includes(state.currentStep)}
+                <div className="space-y-6">
+                  {state.currentStep === 'style-selection' && (
+                    <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl text-center">
+                      <Zap className="w-12 h-12 text-emerald-500 mx-auto mb-6" />
+                      <h3 className="text-2xl font-bold mb-4">توضيح البكسلات</h3>
+                      <p className="text-gray-500 mb-8">سيتم ترميم الصورة ورفع دقتها باستخدام الذكاء الاصطناعي.</p>
+                      <button onClick={handleEnhanceClick} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/20">ابدأ المعالجة</button>
+                    </div>
+                  )}
+                  {state.analysis && (
+                    <AnalysisPanel 
+                      analysis={state.analysis} 
+                      currentDescription={currentDescription}
+                      loading={loading}
+                      isRefining={isRefining}
+                      onRefineDescription={handleRefineDescription}
                     />
-                    
-                    {state.currentStep === 'results' && !state.error && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <a 
-                          href={state.image || ''} 
-                          download="lumina_enhanced.png"
-                          className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
-                        >
-                          <Download className="w-6 h-6" /> تحميل الصورة المحسنة
-                        </a>
-                        <button 
-                          onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة محسنة', url: window.location.href })}
-                          className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 transition-all"
-                        >
-                          <Share2 className="w-6 h-6" /> مشاركة
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-8">
-                    {/* Enhance Confirmation Panel */}
-                    {state.currentStep === 'style-selection' && state.toolMode === 'remix' && (
-                      <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in text-center flex flex-col items-center justify-center h-full max-h-[500px]">
-                        <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                          <ScanFace className="w-12 h-12 text-emerald-500" />
-                        </div>
-                        <h3 className="text-2xl font-bold mb-4 text-dark dark:text-white">الصورة جاهزة للتوضيح</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">
-                          سيقوم النظام الآن بإعادة بناء بكسلات الصورة لرفع دقتها وإزالة التشويش مع الحفاظ على ملامحها الأصلية.
-                        </p>
-                        
-                        <button
-                          onClick={handleEnhanceClick}
-                          className="w-full max-w-sm py-5 bg-emerald-600 text-white text-lg rounded-2xl font-bold shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
-                        >
-                          <Zap className="w-6 h-6 fill-current" />
-                          ابدأ التحسين وتوضيح البكسلات
-                        </button>
-                      </div>
-                    )}
-
-                    {state.toolMode === 'analyze' && state.analysis && (
-                      <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100">
-                        <AnalysisPanel 
-                          analysis={state.analysis} 
-                          currentDescription={currentDescription}
-                          loading={loading}
-                          isRefining={isRefining}
-                          onRefineDescription={handleRefineDescription}
-                        />
-                      </div>
-                    )}
-                    
-                    {state.toolMode === 'remix' && state.currentStep === 'results' && !state.error && (
-                      <div className="bg-gradient-to-br from-emerald-600 to-teal-800 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
-                          <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-3">
-                             <Check className="w-8 h-8 text-white" />
-                             تمت العملية بنجاح!
-                          </h3>
-                          <p className="text-lg text-white/80 leading-relaxed font-medium mb-4">
-                               أصبحت صورتك الآن أكثر وضوحاً ودقة. يمكنك استخدام أداة المقارنة على اليسار لرؤية الفرق.
-                          </p>
-                          <button onClick={handleReset} className="mt-4 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all border border-white/20">
-                            تحسين صورة أخرى
-                          </button>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
