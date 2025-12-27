@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Loader2, Zap } from 'lucide-react';
+import { Search, Palette, Loader2, Sparkles } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -13,16 +13,15 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, mode: ToolMode) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0], mode);
-      e.target.value = '';
     }
   };
 
-  const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number, mimeType: string = 'image/jpeg'): string => {
+  const resizeImage = (img: HTMLImageElement, maxDim: number, quality: number): string => {
     const canvas = document.createElement('canvas');
     let width = img.width;
     let height = img.height;
 
-    // الحفاظ على نسبة العرض إلى الارتفاع مع حد أقصى
+    // الحفاظ على النسبة
     if (width > height) {
       if (width > maxDim) {
         height *= maxDim / width;
@@ -39,63 +38,37 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
     }
-    
-    return canvas.toDataURL(mimeType, quality);
+    return canvas.toDataURL('image/jpeg', quality);
   };
 
   const processFile = (file: File, mode: ToolMode) => {
     setIsProcessingLocal(true);
-    
-    if (!file.type.startsWith('image/')) {
-      alert("يرجى اختيار ملف صورة صالح.");
-      setIsProcessingLocal(false);
-      return;
-    }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        try {
-          // 1. نسخة العرض (Display): جودة عالية ليرى المستخدم الصورة بوضوح
-          const displayBase64 = resizeImage(img, 1500, 0.90);
+        // 1. نسخة العرض (جودة عالية للمستخدم)
+        const displayBase64 = resizeImage(img, 1024, 0.8);
 
-          // 2. نسخة الـ API: تقليل الحجم لضمان سرعة الشبكة
-          const apiBase64 = resizeImage(img, 1024, 0.60);
+        // 2. نسخة الـ API (حجم آمن وموحد 512px)
+        const apiBase64 = resizeImage(img, 512, 0.6);
 
-          onImageSelect(displayBase64, apiBase64, mode);
-        } catch (err) {
-          console.error("Error processing image:", err);
-          alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة بصورة أخرى.");
-        } finally {
-          setIsProcessingLocal(false);
-        }
-      };
-      img.onerror = () => {
-        alert("فشل قراءة ملف الصورة. قد يكون الملف تالفاً.");
+        onImageSelect(displayBase64, apiBase64, mode);
         setIsProcessingLocal(false);
       };
       img.src = e.target?.result as string;
     };
-    
-    reader.onerror = () => {
-      alert("حدث خطأ أثناء قراءة الملف.");
-      setIsProcessingLocal(false);
-    };
-
     reader.readAsDataURL(file);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       {isProcessingLocal && (
-        <div className="fixed inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-center p-6">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="font-bold text-dark dark:text-white text-lg">جاري تجهيز الصورة...</p>
+          <p className="font-bold text-dark dark:text-white">جاري تجهيز الصورة...</p>
         </div>
       )}
 
@@ -104,7 +77,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          أدوات احترافية لتحليل الصور ورفع جودتها بالذكاء الاصطناعي.
+          أدوات احترافية لتحليل الصور وإعادة تخيلها بالذكاء الاصطناعي.
         </p>
       </div>
 
@@ -119,10 +92,10 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         />
         <ToolCard 
           id="fileInputRemix" 
-          title="توضيح البكسلات" 
-          desc="رفع دقة الصورة، إزالة التشويش، وتوضيح التفاصيل الباهتة فورياً." 
-          icon={<Zap className="w-8 h-8 text-emerald-600" />}
-          colorClass="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500"
+          title="إستوديو لومينا" 
+          desc="حول صورك إلى لوحات فنية، أنمي، أو حسّن جودتها بأسلوب واقعي." 
+          icon={<Palette className="w-8 h-8 text-purple-600" />}
+          colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
           onFileSelect={(e) => handleFileInput(e, 'remix')}
         />
       </div>
@@ -155,12 +128,12 @@ const ToolCard: React.FC<ToolCardProps> = ({ id, title, desc, icon, colorClass, 
       {icon}
     </div>
     <div className="absolute top-6 right-6">
-       {title.includes("توضيح") && <Zap className="w-5 h-5 text-emerald-500 animate-pulse" />}
+       {title.includes("إستوديو") && <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />}
     </div>
     <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">{title}</h3>
     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-8">{desc}</p>
     <div className="mt-auto px-10 py-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-xs font-bold text-gray-500 dark:text-gray-400 group-hover:bg-primary group-hover:text-white transition-colors">
-      اضغط لرفع الصورة
+      اضغط هنا للاختيار
     </div>
   </div>
 );

@@ -4,11 +4,19 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
-import { AppState, ToolMode } from './types';
+import { ChatWidget } from './components/ChatWidget';
+import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, Download, Check, AlertCircle, ArrowLeft, Zap } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette } from 'lucide-react';
 
-const ENHANCE_PROMPT = "High-definition restoration, sharpen details, remove artifacts, 8k resolution, photorealistic, maintain original composition and lighting.";
+const REMIX_STYLES: RemixStyle[] = [
+  { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography' },
+  { id: 'cinematic', name: 'سينمائي', icon: '🎬', color: 'bg-red-500', prompt: 'Cinematic lighting, dramatic atmosphere, movie scene, depth of field, 8k' },
+  { id: 'anime', name: 'أنمي ياباني', icon: '👻', color: 'bg-pink-500', prompt: 'Japanese anime style, vibrant colors, studio ghibli style, detailed illustration' },
+  { id: '3d', name: 'ثلاثي الأبعاد', icon: '🧊', color: 'bg-indigo-500', prompt: '3D render, Pixar style, cute, smooth textures, volumetric lighting, unreal engine 5' },
+  { id: 'cyberpunk', name: 'سايبر بانك', icon: '⚡', color: 'bg-yellow-500', prompt: 'Cyberpunk style, neon lights, futuristic city background, night time, rain' },
+  { id: 'sketch', name: 'رسم يدوي', icon: '✏️', color: 'bg-gray-500', prompt: 'Pencil sketch, hand drawn, artistic, charcoal, detailed lines' },
+];
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState & { error: string | null }>({
@@ -24,23 +32,42 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [status, setStatus] = useState<string>("");
+  const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
+  const [longProcessTip, setLongProcessTip] = useState(false);
 
   useEffect(() => {
-    if (isDarkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [isDarkMode]);
+
+  // إظهار رسالة "العملية تأخذ وقتاً" بعد 8 ثواني من التحميل
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (loading) {
+      setLongProcessTip(false);
+      timer = setTimeout(() => setLongProcessTip(true), 8000);
+    } else {
+      setLongProcessTip(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
   const handleImageSelect = async (displayBase64: string, apiBase64: string, mode: ToolMode) => {
     setOriginalImage(displayBase64);
-    setApiImage(apiBase64); 
+    setApiImage(apiBase64);
     
+    if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'smooth' });
+
     if (mode === 'remix') {
       setState(prev => ({ ...prev, currentStep: 'style-selection', toolMode: mode, image: displayBase64, error: null }));
     } else {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
-      setStatus("جاري تحليل الصورة...");
       try {
         const analysis = await analyzeImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
@@ -53,16 +80,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEnhanceClick = async () => {
+  const handleStyleSelect = async (style: RemixStyle) => {
     if (!apiImage) return;
-    setLoading(true);
-    setStatus("جاري توضيح البكسلات...");
+    
+    setSelectedStyle(style);
     setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
+    setLoading(true);
 
     try {
-      const result = await remixImageWithGemini(apiImage, ENHANCE_PROMPT);
-      setState(prev => ({ ...prev, currentStep: 'results', image: result }));
+      const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
+      setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
+      console.error("Remix Error details:", error);
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -74,8 +103,8 @@ const App: React.FC = () => {
     try {
       const refined = await refineDescriptionWithGemini(currentDescription, instruction);
       setCurrentDescription(refined);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsRefining(false);
     }
@@ -85,75 +114,179 @@ const App: React.FC = () => {
     setState({ currentStep: 'upload', toolMode: null, image: null, analysis: null, error: null });
     setOriginalImage(null);
     setApiImage(null);
+    setCurrentDescription('');
+    setSelectedStyle(null);
     setLoading(false);
+  };
+
+  const getFriendlyErrorMessage = (errorMsg: string) => {
+    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel.";
+    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
+    if (errorMsg.includes("400")) return "تعذر معالجة الطلب. يرجى تجربة صورة مختلفة أو نمط آخر.";
+    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
+    return "حدث خطأ غير متوقع أثناء المعالجة.";
   };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors duration-300 font-sans">
-      <Header isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)} highlightSupport={state.currentStep === 'results'} />
+      <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} highlightSupport={state.currentStep === 'results'} />
       
-      <main className="container mx-auto px-4 py-10">
+      <main className="container mx-auto px-4 py-6 md:py-10">
         {state.currentStep === 'upload' && <Hero onImageSelect={handleImageSelect} />}
 
         {state.currentStep !== 'upload' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1600px] mx-auto">
             {state.error ? (
-              <div className="text-center p-10 bg-red-50 dark:bg-red-900/10 rounded-[2rem] border border-red-100">
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-red-600 mb-2">فشلت العملية</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">{state.error}</p>
-                <button onClick={handleReset} className="px-8 py-3 bg-primary text-white rounded-xl font-bold">العودة للبداية</button>
+              <div className="max-w-xl mx-auto py-20 text-center space-y-6 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">عذراً، لم تكتمل العملية</h3>
+                <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed font-medium">
+                    {getFriendlyErrorMessage(state.error)}
+                  </p>
+                </div>
+                <button 
+                  onClick={handleReset} 
+                  className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                >
+                  العودة والمحاولة مرة أخرى
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-fade-in">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                     <button onClick={handleReset} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors">
-                       <ArrowLeft className="w-4 h-4" /> العودة
-                     </button>
-                     <div className="text-xs font-bold text-gray-400">{status}</div>
-                  </div>
-                  <ImageViewer 
-                    imageSrc={state.image || originalImage || ''} 
-                    originalSrc={originalImage}
-                    isEnhancing={loading && state.currentStep === 'processing'}
-                  />
-                  {state.currentStep === 'results' && (
-                    <div className="flex gap-4">
-                      <a href={state.image || ''} download="lumina_result.png" className="flex-1 bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
-                        <Download className="w-5 h-5" /> تحميل
-                      </a>
-                      <button className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl text-gray-600 dark:text-gray-300">
-                        <Share2 className="w-5 h-5" />
-                      </button>
+              <>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-xl px-6 py-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-xl">
+                  <div className="flex items-center gap-5">
+                    <div className={`p-4 rounded-[1.5rem] shadow-lg ${
+                      state.toolMode === 'remix' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
+                    }`}>
+                      {state.toolMode === 'remix' ? <Palette className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
                     </div>
-                  )}
+                    <div>
+                      <h2 className="text-xl font-bold">
+                        {state.toolMode === 'remix' ? 'إستوديو لومينا' : 'تحليل لومينا'}
+                      </h2>
+                      <div className="flex items-center gap-2 mt-1">
+                        {['analyzing', 'processing'].includes(state.currentStep) ? (
+                          <div className="flex flex-col items-start">
+                             <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
+                               <RefreshCw className="w-3 h-3 animate-spin" /> 
+                               {state.toolMode === 'remix' ? 'جاري الرسم (قد يستغرق 30 ثانية)...' : 'جاري التحليل...'}
+                             </span>
+                             {longProcessTip && (
+                               <span className="text-[10px] text-orange-500 font-medium mt-1 animate-fade-in">
+                                  العملية تأخذ وقتاً لضمان أعلى جودة، يرجى الانتظار...
+                               </span>
+                             )}
+                          </div>
+                        ) : state.currentStep === 'style-selection' ? (
+                          <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
+                            <Sparkles className="w-3 h-3" /> بانتظار اختيار النمط
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
+                            <Check className="w-3 h-3" /> تم بنجاح
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm border border-gray-100 dark:border-gray-600 flex items-center gap-3 shadow-md hover:scale-105 active:scale-95 transition-all">
+                    <ArrowLeft className="w-5 h-5" /> العودة للبداية
+                  </button>
                 </div>
 
-                <div className="space-y-6">
-                  {state.currentStep === 'style-selection' && (
-                    <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl text-center">
-                      <Zap className="w-12 h-12 text-emerald-500 mx-auto mb-6" />
-                      <h3 className="text-2xl font-bold mb-4">توضيح البكسلات</h3>
-                      <p className="text-gray-500 mb-8">سيتم ترميم الصورة ورفع دقتها باستخدام الذكاء الاصطناعي.</p>
-                      <button onClick={handleEnhanceClick} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/20">ابدأ المعالجة</button>
-                    </div>
-                  )}
-                  {state.analysis && (
-                    <AnalysisPanel 
-                      analysis={state.analysis} 
-                      currentDescription={currentDescription}
-                      loading={loading}
-                      isRefining={isRefining}
-                      onRefineDescription={handleRefineDescription}
+                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10">
+                  <div className="space-y-8">
+                    <ImageViewer 
+                      imageSrc={state.image || originalImage || ''} 
+                      originalSrc={originalImage}
+                      isEnhancing={['processing'].includes(state.currentStep)}
                     />
-                  )}
+                    
+                    {state.currentStep === 'results' && !state.error && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <a 
+                          href={state.image || ''} 
+                          download="lumina_remix.png"
+                          className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
+                        >
+                          <Download className="w-6 h-6" /> تحميل الصورة
+                        </a>
+                        <button 
+                          onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة معالجة بالذكاء الاصطناعي', url: window.location.href })}
+                          className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 transition-all"
+                        >
+                          <Share2 className="w-6 h-6" /> مشاركة
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Style Selection Panel */}
+                    {state.currentStep === 'style-selection' && (
+                      <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                          <Palette className="w-5 h-5 text-purple-500" />
+                          اختر نمط التحويل
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          {REMIX_STYLES.map((style) => (
+                            <button
+                              key={style.id}
+                              onClick={() => handleStyleSelect(style)}
+                              className="group relative p-6 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-500/30 transition-all duration-300 text-center flex flex-col items-center gap-3 hover:-translate-y-1 hover:shadow-lg"
+                            >
+                              <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">{style.icon}</span>
+                              <span className="font-bold text-sm text-gray-700 dark:text-gray-200">{style.name}</span>
+                              <div className={`absolute bottom-0 inset-x-0 h-1 rounded-b-2xl ${style.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-6 text-center">
+                          سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل بناءً على النمط المختار.
+                        </p>
+                      </div>
+                    )}
+
+                    {state.toolMode === 'analyze' && state.analysis && (
+                      <div className="bg-subtle-pattern dark:bg-gray-800/50 rounded-[3rem] p-8 shadow-2xl border border-gray-100">
+                        <AnalysisPanel 
+                          analysis={state.analysis} 
+                          currentDescription={currentDescription}
+                          loading={loading}
+                          isRefining={isRefining}
+                          onRefineDescription={handleRefineDescription}
+                        />
+                      </div>
+                    )}
+                    
+                    {state.toolMode === 'remix' && state.currentStep === 'results' && !state.error && (
+                      <div className="bg-gradient-to-br from-purple-600 to-indigo-800 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
+                          <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-3">
+                             <Sparkles className="w-8 h-8 text-yellow-300" />
+                             تمت إعادة التخيل!
+                          </h3>
+                          <p className="text-lg text-white/80 leading-relaxed font-medium mb-4">
+                               تم تحويل صورتك بنجاح بنمط <span className="text-white font-bold bg-white/20 px-2 py-0.5 rounded-lg">{selectedStyle?.name}</span>.
+                          </p>
+                          <button onClick={handleReset} className="mt-4 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all border border-white/20">
+                            تجربة نمط آخر
+                          </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
       </main>
+
+      {state.toolMode === 'analyze' && state.currentStep === 'results' && !state.error && <ChatWidget imageAnalysis={state.analysis} />}
     </div>
   );
 };
