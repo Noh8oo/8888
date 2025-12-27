@@ -5,6 +5,7 @@ import { Hero } from './components/Hero';
 import { ImageViewer } from './components/ImageViewer';
 import { AnalysisPanel } from './components/AnalysisPanel';
 import { ChatWidget } from './components/ChatWidget';
+import { ArtisticGallery } from './components/ArtisticGallery';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
 import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette } from 'lucide-react';
@@ -229,26 +230,18 @@ const App: React.FC = () => {
                     {/* Style Selection Panel */}
                     {state.currentStep === 'style-selection' && (
                       <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
-                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                          <Palette className="w-5 h-5 text-purple-500" />
-                          اختر نمط التحويل
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          {REMIX_STYLES.map((style) => (
-                            <button
-                              key={style.id}
-                              onClick={() => handleStyleSelect(style)}
-                              className="group relative p-6 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-500/30 transition-all duration-300 text-center flex flex-col items-center gap-3 hover:-translate-y-1 hover:shadow-lg"
-                            >
-                              <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">{style.icon}</span>
-                              <span className="font-bold text-sm text-gray-700 dark:text-gray-200">{style.name}</span>
-                              <div className={`absolute bottom-0 inset-x-0 h-1 rounded-b-2xl ${style.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-                            </button>
-                          ))}
+                        <div className="flex items-center gap-2 mb-6">
+                           <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl">
+                             <Palette className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                           </div>
+                           <div>
+                              <h3 className="text-xl font-bold text-gray-900 dark:text-white">اختر نمط التحويل</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل</p>
+                           </div>
                         </div>
-                        <p className="text-xs text-gray-400 mt-6 text-center">
-                          سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل بناءً على النمط المختار.
-                        </p>
+                        
+                        <ArtisticGallery styles={REMIX_STYLES} onSelect={handleStyleSelect} />
+                        
                       </div>
                     )}
 

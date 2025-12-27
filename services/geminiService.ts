@@ -8,18 +8,21 @@ const getMimeType = (base64: string): string => {
 };
 
 const cleanBase64Data = (base64: string): string => {
-  return base64.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, '');
+  if (base64.includes(',')) {
+    return base64.split(',')[1];
+  }
+  return base64;
 };
 
 const validateApiKey = () => {
+  // In Vite, process.env.API_KEY is replaced by the defined string
   const key = process.env.API_KEY;
-  if (!key || key.trim() === '' || key === 'undefined') {
-    console.error("API Key Check Failed: Key is missing.");
+  if (!key || key.trim() === '' || key === 'undefined' || key.includes('VITE_API_KEY')) {
+    console.error("API Key Check Failed: Key is missing or invalid.");
     throw new Error("API_KEY_MISSING");
   }
 };
 
-// إعدادات أمان قصوى (Block None)
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -40,11 +43,12 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       contents: {
         parts: [
           { inlineData: { mimeType, data: cleanBase64 } },
-          { text: "Analyze image and provide output as JSON with: colors (HEX), style, objects, and an Arabic prompt." }
+          { text: "Analyze this image. Return a valid JSON object with these exact keys: colors (array of hex strings), style (string), layout (string), layoutDetail (detailed string), view (string), viewDetail (detailed string), objects (array of strings), prompt (string describing the image for generation). Do not use markdown formatting." }
         ],
       },
       config: {
         responseMimeType: "application/json",
+        // Strict schema helps ensure JSON validity
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -57,17 +61,20 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
             objects: { type: Type.ARRAY, items: { type: Type.STRING } },
             prompt: { type: Type.STRING },
           },
-          required: ["colors", "style", "layout", "layoutDetail", "view", "viewDetail", "objects", "prompt"],
+          required: ["colors", "style", "layout", "objects", "prompt"],
         },
       },
     });
 
-    if (!response.text) throw new Error("EMPTY");
-    return JSON.parse(response.text) as ImageAnalysis;
+    if (!response.text) throw new Error("EMPTY_RESPONSE");
+    
+    // Sometimes the model might wrap in ```json ... ``` despite mimeType, so we clean it just in case
+    const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text) as ImageAnalysis;
   } catch (e: any) {
     console.error("Analysis Error:", e);
-    if (e.message === "API_KEY_MISSING") throw e;
-    throw new Error("فشل تحليل الصورة. حاول مرة أخرى.");
+    if (e.message.includes("API_KEY")) throw new Error("API_KEY_MISSING");
+    throw new Error("فشل تحليل الصورة. تأكد من المفتاح أو جرب صورة أخرى.");
   }
 };
 
@@ -77,17 +84,15 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  let description = "A creative artistic composition";
-
-  // 1. المحاولة الأولى: تعديل الصورة المباشر (Image-to-Image)
+  // Strategy 1: Direct Image-to-Image (Fastest & Best for keeping composition)
   try {
-    console.log("Attempt 1: Direct Remix (Img2Img)");
+    console.log("Starting Remix Strategy 1: Direct Img2Img");
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: `Transform this image strictly into this style: ${stylePrompt}. Maintain the composition but change the artistic style entirely.` }
+          { text: `Redraw this image in the following style: "${stylePrompt}". Keep the same composition and main subject, but apply the art style intensely. High quality, 4k resolution.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -101,36 +106,36 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Attempt 1 Failed: No image returned.");
+    console.warn("Strategy 1 result contained no image data.");
   } catch (e: any) {
-    console.warn("Attempt 1 Error:", e.message);
+    console.warn("Strategy 1 Failed:", e.message);
   }
 
-  // 2. المحاولة الثانية: استخراج الوصف + توليد جديد (Text-to-Image)
+  // Strategy 2: Describe -> Generate (Fallback if direct edit fails or is blocked)
   try {
-    console.log("Attempt 2: Describe then Generate");
+    console.log("Starting Remix Strategy 2: Describe & Generate");
     
-    // محاولة وصف الصورة (قد تفشل إذا كانت الصورة محظورة)
-    const analysisResponse = await ai.models.generateContent({
+    // Step A: Get a description (using a cheaper/faster model or the vision model)
+    // We use a safe prompt to avoid safety blocks on the description itself if possible
+    const descResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: "Describe the main subject, colors, and composition of this image in one English sentence." }
+          { text: "Describe the visual content of this image in detail (subject, pose, background, colors) in English." }
         ]
       }
     });
     
-    if (analysisResponse.text) {
-      description = analysisResponse.text;
-    }
-    console.log("Description obtained:", description);
+    const description = descResponse.text || "A creative scene";
+    console.log("Generated Description:", description);
 
+    // Step B: Generate new image based on description + style
     const genResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          { text: `Generate a high-quality image: ${description}. Art Style: ${stylePrompt}. Ensure high resolution and detail.` }
+          { text: `Generate an image. Subject: ${description}. Art Style: ${stylePrompt}. High quality, detailed masterpiece.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -144,60 +149,43 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Attempt 2 Failed: No image generated.");
-
-  } catch (fallbackError: any) {
-    console.warn("Attempt 2 Error:", fallbackError.message);
-    // إذا فشل وصف الصورة (بسبب الأمان)، ننتقل للمحاولة الثالثة
+  } catch (e: any) {
+    console.warn("Strategy 2 Failed:", e.message);
   }
 
-  // 3. المحاولة الثالثة (الأخيرة): توليد تجريدي بناءً على النمط فقط (Last Resort)
-  try {
-    console.log("Attempt 3: Last Resort (Style Only)");
-    const lastResortResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          { text: `Create a masterpiece image representing the concept of 'Creativity' in this specific style: ${stylePrompt}. High quality, 4k.` }
-        ],
-      },
-      config: { safetySettings: SAFETY_SETTINGS }
-    });
-
-    const lastParts = lastResortResponse.candidates?.[0]?.content?.parts;
-    if (lastParts) {
-      for (const part of lastParts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-  } catch (lastError) {
-    console.error("All attempts failed.");
-  }
-
-  // إذا وصلنا هنا، فكل شيء فشل
   throw new Error("FAILED_GENERATION");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Modify this: "${originalDescription}" based on: "${userInstruction}". Arabic only.`,
-  });
-  return response.text || originalDescription;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Reword this description: "${originalDescription}" applying this instruction: "${userInstruction}". Keep it in Arabic.`,
+    });
+    return response.text || originalDescription;
+  } catch (e) {
+    return originalDescription;
+  }
 };
 
-export const chatWithGemini = async (history: { role: string; parts: { text: string }[] }[], newMessage: string) => {
+export const chatWithGemini = async (history: any[], message: string): Promise<string> => {
   validateApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const chat = ai.chats.create({
-    model: "gemini-3-flash-preview",
-    history: history,
-    config: { systemInstruction: "أنت مساعد لومينا. أجب بالعربية باختصار." }
-  });
-  const response = await chat.sendMessage({ message: newMessage });
-  return response.text || "";
+  try {
+    // Manually constructing history to avoid SDK type issues if strictly typed
+    const chat = ai.chats.create({
+      model: 'gemini-3-flash-preview',
+      history: history,
+      config: {
+        systemInstruction: "أنت مساعد تصميم محترف في مختبر لومينا. تساعد المستخدمين في تحليل الصور وتقديم أفكار إبداعية وتوضيح مفاهيم التصميم. اجعل ردودك مفيدة، ملهمة، ومختصرة وباللغة العربية.",
+      }
+    });
+    const response = await chat.sendMessage({ message });
+    return response.text || "";
+  } catch (e: any) {
+    console.error("Chat Error:", e);
+    return "عذراً، حدث خطأ في الاتصال.";
+  }
 };
