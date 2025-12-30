@@ -2,6 +2,16 @@
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
+// Helper helper to safely get the key
+const getApiKey = (): string => {
+  const key = process.env.API_KEY;
+  if (!key || key.trim() === '' || key.includes('VITE_API_KEY')) {
+    console.error("API Key is missing or invalid in environment variables.");
+    throw new Error("API_KEY_MISSING");
+  }
+  return key;
+};
+
 const getMimeType = (base64: string): string => {
   const match = base64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
   return match ? match[1] : 'image/jpeg';
@@ -14,15 +24,6 @@ const cleanBase64Data = (base64: string): string => {
   return base64;
 };
 
-const validateApiKey = () => {
-  // In Vite, process.env.API_KEY is replaced by the defined string
-  const key = process.env.API_KEY;
-  if (!key || key.trim() === '' || key === 'undefined' || key.includes('VITE_API_KEY')) {
-    console.error("API Key Check Failed: Key is missing or invalid.");
-    throw new Error("API_KEY_MISSING");
-  }
-};
-
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -32,10 +33,10 @@ const SAFETY_SETTINGS = [
 ];
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
-  validateApiKey();
+  const key = getApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: key });
 
   try {
     const response = await ai.models.generateContent({
@@ -48,7 +49,6 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
       },
       config: {
         responseMimeType: "application/json",
-        // Strict schema helps ensure JSON validity
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -67,8 +67,6 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     });
 
     if (!response.text) throw new Error("EMPTY_RESPONSE");
-    
-    // Sometimes the model might wrap in ```json ... ``` despite mimeType, so we clean it just in case
     const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(text) as ImageAnalysis;
   } catch (e: any) {
@@ -79,20 +77,22 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
 };
 
 export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
-  validateApiKey();
+  const key = getApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: key });
 
-  // Strategy 1: Direct Image-to-Image (Fastest & Best for keeping composition)
+  let capturedDescription = "Artistic creative image";
+
+  // --- Strategy 1: Direct Image-to-Image (Gemini 2.5) ---
   try {
-    console.log("Starting Remix Strategy 1: Direct Img2Img");
+    console.log("Attempting Strategy 1: Gemini 2.5 Img2Img");
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: `Redraw this image in the following style: "${stylePrompt}". Keep the same composition and main subject, but apply the art style intensely. High quality, 4k resolution.` }
+          { text: `Transform this image into the following style: ${stylePrompt}. Maintain the composition and subject matter but change the artistic style completely. High quality, detailed.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -108,34 +108,31 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
     }
     console.warn("Strategy 1 result contained no image data.");
   } catch (e: any) {
-    console.warn("Strategy 1 Failed:", e.message);
+    console.warn("Strategy 1 Failed (Gemini Img2Img):", e.message);
   }
 
-  // Strategy 2: Describe -> Generate (Fallback if direct edit fails or is blocked)
+  // --- Strategy 2: Describe then Generate (Gemini 2.5) ---
   try {
-    console.log("Starting Remix Strategy 2: Describe & Generate");
+    console.log("Attempting Strategy 2: Describe & Generate (Gemini 2.5)");
     
-    // Step A: Get a description (using a cheaper/faster model or the vision model)
-    // We use a safe prompt to avoid safety blocks on the description itself if possible
+    // Step A: Get Description (using the robust text model)
     const descResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: "Describe the visual content of this image in detail (subject, pose, background, colors) in English." }
+          { text: "Briefly describe the visual content of this image (subject, colors, setting) in English for image generation purposes." }
         ]
       }
     });
+    capturedDescription = descResponse.text || capturedDescription;
     
-    const description = descResponse.text || "A creative scene";
-    console.log("Generated Description:", description);
-
-    // Step B: Generate new image based on description + style
+    // Step B: Generate
     const genResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          { text: `Generate an image. Subject: ${description}. Art Style: ${stylePrompt}. High quality, detailed masterpiece.` }
+          { text: `Generate an image. Subject: ${capturedDescription}. Art Style: ${stylePrompt}. High resolution, masterpiece.` }
         ],
       },
       config: { safetySettings: SAFETY_SETTINGS }
@@ -150,15 +147,37 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
       }
     }
   } catch (e: any) {
-    console.warn("Strategy 2 Failed:", e.message);
+    console.warn("Strategy 2 Failed (Gemini Gen):", e.message);
   }
 
-  throw new Error("FAILED_GENERATION");
+  // --- Strategy 3: Imagen 3 Fallback (The Savior) ---
+  try {
+    console.log("Attempting Strategy 3: Imagen 3 Fallback");
+    // Imagen 3 is often more stable for pure generation requests
+    const imagenResponse = await ai.models.generateImages({
+      model: 'imagen-3.0-generate-001',
+      prompt: `${capturedDescription}, in the style of ${stylePrompt}, high quality`,
+      config: {
+        numberOfImages: 1,
+        aspectRatio: '1:1', // Standard safe aspect ratio
+        outputMimeType: 'image/jpeg'
+      },
+    });
+
+    const imageBytes = imagenResponse.generatedImages?.[0]?.image?.imageBytes;
+    if (imageBytes) {
+      return `data:image/jpeg;base64,${imageBytes}`;
+    }
+  } catch (e: any) {
+    console.warn("Strategy 3 Failed (Imagen):", e.message);
+  }
+
+  throw new Error("FAILED_GENERATION: All strategies failed. Please try again later.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
-  validateApiKey();
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const key = getApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -171,10 +190,9 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
 };
 
 export const chatWithGemini = async (history: any[], message: string): Promise<string> => {
-  validateApiKey();
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const key = getApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   try {
-    // Manually constructing history to avoid SDK type issues if strictly typed
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       history: history,

@@ -44,12 +44,11 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // إظهار رسالة "العملية تأخذ وقتاً" بعد 8 ثواني من التحميل
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (loading) {
       setLongProcessTip(false);
-      timer = setTimeout(() => setLongProcessTip(true), 8000);
+      timer = setTimeout(() => setLongProcessTip(true), 6000);
     } else {
       setLongProcessTip(false);
     }
@@ -92,7 +91,7 @@ const App: React.FC = () => {
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
-      console.error("Remix Error details:", error);
+      console.error("Remix Final Error:", error);
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -121,11 +120,11 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات Vercel.";
-    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة هذه المرة. قد تكون الخوادم مشغولة، يرجى المحاولة مرة أخرى.";
-    if (errorMsg.includes("400")) return "تعذر معالجة الطلب. يرجى تجربة صورة مختلفة أو نمط آخر.";
-    if (errorMsg.includes("503") || errorMsg.includes("Overloaded")) return "الخوادم تشهد ضغطاً عالياً حالياً. يرجى الانتظار دقيقة والمحاولة.";
-    return "حدث خطأ غير متوقع أثناء المعالجة.";
+    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات البيئة في Vercel.";
+    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة حتى بعد عدة محاولات. قد تكون الخوادم مشغولة جداً الآن.";
+    if (errorMsg.includes("400") || errorMsg.includes("429")) return "هناك ضغط على الخدمة، يرجى المحاولة بعد دقيقة.";
+    if (errorMsg.includes("Safety")) return "لم نتمكن من معالجة الصورة بسبب قيود الأمان في المحتوى.";
+    return "حدث خطأ غير متوقع أثناء الاتصال بالذكاء الاصطناعي.";
   };
 
   return (
@@ -173,11 +172,11 @@ const App: React.FC = () => {
                           <div className="flex flex-col items-start">
                              <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
                                <RefreshCw className="w-3 h-3 animate-spin" /> 
-                               {state.toolMode === 'remix' ? 'جاري الرسم (قد يستغرق 30 ثانية)...' : 'جاري التحليل...'}
+                               {state.toolMode === 'remix' ? 'جاري الرسم (نحاول بأكثر من طريقة)...' : 'جاري التحليل...'}
                              </span>
                              {longProcessTip && (
                                <span className="text-[10px] text-orange-500 font-medium mt-1 animate-fade-in">
-                                  العملية تأخذ وقتاً لضمان أعلى جودة، يرجى الانتظار...
+                                  نحاول استخدام نماذج بديلة لضمان الجودة، شكراً لصفرك...
                                </span>
                              )}
                           </div>
