@@ -71,31 +71,35 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     return JSON.parse(text) as ImageAnalysis;
   } catch (e: any) {
     console.error("Analysis Error:", e);
-    if (e.message.includes("API_KEY")) throw new Error("API_KEY_MISSING");
-    throw new Error("فشل تحليل الصورة. تأكد من المفتاح أو جرب صورة أخرى.");
+    throw e;
   }
 };
 
-export const remixImageWithGemini = async (base64Image: string, stylePrompt: string): Promise<string> => {
+export const remixImageWithGemini = async (base64Image: string, enhancementInstruction: string): Promise<string> => {
   const key = getApiKey();
   const mimeType = getMimeType(base64Image);
   const cleanBase64 = cleanBase64Data(base64Image);
   const ai = new GoogleGenAI({ apiKey: key });
 
-  let capturedDescription = "Artistic creative image";
+  let lastError: any = null;
 
-  // --- Strategy 1: Direct Image-to-Image (Gemini 2.5) ---
+  // We are now strictly doing IMAGE ENHANCEMENT/UPSCALING.
+  // Strategy: Use Gemini 2.5 Flash Image which supports Image Input -> Image Output.
+  // We prompt it to maintain the content but improve quality.
+  
   try {
-    console.log("Attempting Strategy 1: Gemini 2.5 Img2Img");
+    console.log("Attempting Enhancement via Gemini 2.5 Img2Img");
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: `Transform this image into the following style: ${stylePrompt}. Maintain the composition and subject matter but change the artistic style completely. High quality, detailed.` }
+          { text: `Strictly maintain the original image content, composition, and colors. Your ONLY task is to enhance the image quality based on this instruction: ${enhancementInstruction}. Output the result as a high-quality image.` }
         ],
       },
-      config: { safetySettings: SAFETY_SETTINGS }
+      config: { 
+        safetySettings: SAFETY_SETTINGS 
+      }
     });
 
     const parts = response.candidates?.[0]?.content?.parts;
@@ -106,73 +110,21 @@ export const remixImageWithGemini = async (base64Image: string, stylePrompt: str
         }
       }
     }
-    console.warn("Strategy 1 result contained no image data.");
+    console.warn("Enhancement result contained no image data.");
   } catch (e: any) {
-    console.warn("Strategy 1 Failed (Gemini Img2Img):", e.message);
+    console.warn("Enhancement Failed:", e.message);
+    lastError = e;
   }
 
-  // --- Strategy 2: Describe then Generate (Gemini 2.5) ---
-  try {
-    console.log("Attempting Strategy 2: Describe & Generate (Gemini 2.5)");
-    
-    // Step A: Get Description (using the robust text model)
-    const descResponse = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          { inlineData: { data: cleanBase64, mimeType } },
-          { text: "Briefly describe the visual content of this image (subject, colors, setting) in English for image generation purposes." }
-        ]
-      }
-    });
-    capturedDescription = descResponse.text || capturedDescription;
-    
-    // Step B: Generate
-    const genResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          { text: `Generate an image. Subject: ${capturedDescription}. Art Style: ${stylePrompt}. High resolution, masterpiece.` }
-        ],
-      },
-      config: { safetySettings: SAFETY_SETTINGS }
-    });
+  // NOTE: We removed the "Imagen 3" fallback because Imagen generates NEW images from text,
+  // which violates the user's requirement to only "Enhance" the existing pixels.
+  // If Gemini 2.5 fails to return an image, we must fail gracefully rather than returning a fake generated image.
 
-    const genParts = genResponse.candidates?.[0]?.content?.parts;
-    if (genParts) {
-      for (const part of genParts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-  } catch (e: any) {
-    console.warn("Strategy 2 Failed (Gemini Gen):", e.message);
+  if (lastError) {
+    throw lastError;
   }
 
-  // --- Strategy 3: Imagen 3 Fallback (The Savior) ---
-  try {
-    console.log("Attempting Strategy 3: Imagen 3 Fallback");
-    // Imagen 3 is often more stable for pure generation requests
-    const imagenResponse = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-001',
-      prompt: `${capturedDescription}, in the style of ${stylePrompt}, high quality`,
-      config: {
-        numberOfImages: 1,
-        aspectRatio: '1:1', // Standard safe aspect ratio
-        outputMimeType: 'image/jpeg'
-      },
-    });
-
-    const imageBytes = imagenResponse.generatedImages?.[0]?.image?.imageBytes;
-    if (imageBytes) {
-      return `data:image/jpeg;base64,${imageBytes}`;
-    }
-  } catch (e: any) {
-    console.warn("Strategy 3 Failed (Imagen):", e.message);
-  }
-
-  throw new Error("FAILED_GENERATION: All strategies failed. Please try again later.");
+  throw new Error("FAILED_GENERATION: Could not enhance image. Please try again.");
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {

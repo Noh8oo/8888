@@ -8,15 +8,52 @@ import { ChatWidget } from './components/ChatWidget';
 import { ArtisticGallery } from './components/ArtisticGallery';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Palette } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Zap, Move, Sun, ShieldCheck, Microscope } from 'lucide-react';
 
-const REMIX_STYLES: RemixStyle[] = [
-  { id: 'realistic', name: 'تحسين واقعي', icon: '📷', color: 'bg-blue-500', prompt: 'High quality, 4k resolution, hyper realistic, improve lighting and textures, detailed photography' },
-  { id: 'cinematic', name: 'سينمائي', icon: '🎬', color: 'bg-red-500', prompt: 'Cinematic lighting, dramatic atmosphere, movie scene, depth of field, 8k' },
-  { id: 'anime', name: 'أنمي ياباني', icon: '👻', color: 'bg-pink-500', prompt: 'Japanese anime style, vibrant colors, studio ghibli style, detailed illustration' },
-  { id: '3d', name: 'ثلاثي الأبعاد', icon: '🧊', color: 'bg-indigo-500', prompt: '3D render, Pixar style, cute, smooth textures, volumetric lighting, unreal engine 5' },
-  { id: 'cyberpunk', name: 'سايبر بانك', icon: '⚡', color: 'bg-yellow-500', prompt: 'Cyberpunk style, neon lights, futuristic city background, night time, rain' },
-  { id: 'sketch', name: 'رسم يدوي', icon: '✏️', color: 'bg-gray-500', prompt: 'Pencil sketch, hand drawn, artistic, charcoal, detailed lines' },
+// تحويل القائمة من أنماط فنية إلى أدوات تحسين
+const ENHANCEMENT_TOOLS: RemixStyle[] = [
+  { 
+    id: 'upscale', 
+    name: 'رفع الدقة (Upscale)', 
+    icon: <Microscope className="w-8 h-8" />, 
+    color: 'bg-blue-500', 
+    prompt: 'Do not change the image content. Act as a super-resolution upscaler. Increase resolution, sharpen details, fix pixelation, and improve overall clarity significantly. Output a high-fidelity version of the original image.' 
+  },
+  { 
+    id: 'denoise', 
+    name: 'إزالة التشويش', 
+    icon: <ShieldCheck className="w-8 h-8" />, 
+    color: 'bg-green-500', 
+    prompt: 'Do not change the image content. Remove all digital noise, compression artifacts, and grain. Smooth out the textures while keeping edges sharp. Clean up the image quality.' 
+  },
+  { 
+    id: 'sharpen', 
+    name: 'توضيح التفاصيل', 
+    icon: <Move className="w-8 h-8" />, 
+    color: 'bg-purple-500', 
+    prompt: 'Do not change the image content. Sharpen the edges and fine details. Focus on bringing out texture and clarity in blurry areas. Make the image look crisp and focused.' 
+  },
+  { 
+    id: 'relight', 
+    name: 'تصحيح الإضاءة', 
+    icon: <Sun className="w-8 h-8" />, 
+    color: 'bg-orange-500', 
+    prompt: 'Do not change the image content. Fix the lighting and exposure. Balance the shadows and highlights. Make the colors look natural and vibrant. Correct any white balance issues.' 
+  },
+  { 
+    id: 'restore', 
+    name: 'ترميم وإصلاح', 
+    icon: <RefreshCw className="w-8 h-8" />, 
+    color: 'bg-teal-500', 
+    prompt: 'Do not change the image content. Restore this image quality. Fix scratches, blur, or jpeg artifacts. Enhance the visual fidelity to look like a high-quality professional photo.' 
+  },
+  { 
+    id: 'hdr', 
+    name: 'تأثير HDR', 
+    icon: <Zap className="w-8 h-8" />, 
+    color: 'bg-pink-500', 
+    prompt: 'Do not change the image content. Apply a subtle HDR effect to enhance dynamic range. Boost local contrast and color depth without making it look artificial.' 
+  },
 ];
 
 const App: React.FC = () => {
@@ -91,7 +128,7 @@ const App: React.FC = () => {
       const remixedImage = await remixImageWithGemini(apiImage, style.prompt);
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
-      console.error("Remix Final Error:", error);
+      console.error("Enhance Final Error:", error);
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -120,11 +157,22 @@ const App: React.FC = () => {
   };
 
   const getFriendlyErrorMessage = (errorMsg: string) => {
-    if (errorMsg.includes("API_KEY_MISSING")) return "لم يتم العثور على مفتاح API. تأكد من إعدادات البيئة في Vercel.";
-    if (errorMsg.includes("FAILED_GENERATION")) return "تعذر إنشاء الصورة حتى بعد عدة محاولات. قد تكون الخوادم مشغولة جداً الآن.";
-    if (errorMsg.includes("400") || errorMsg.includes("429")) return "هناك ضغط على الخدمة، يرجى المحاولة بعد دقيقة.";
-    if (errorMsg.includes("Safety")) return "لم نتمكن من معالجة الصورة بسبب قيود الأمان في المحتوى.";
-    return "حدث خطأ غير متوقع أثناء الاتصال بالذكاء الاصطناعي.";
+    const msg = (errorMsg || "").toLowerCase();
+
+    if (msg.includes("api_key") || msg.includes("api key") || msg.includes("403")) {
+      return "مفتاح API غير صالح. تأكد من إعدادات البيئة.";
+    }
+    if (msg.includes("safety") || msg.includes("blocked")) {
+      return "تم حظر العملية بسبب سياسات الأمان الخاصة بجوجل.";
+    }
+    if (msg.includes("429") || msg.includes("quota")) {
+      return "تم تجاوز حد الاستخدام. يرجى الانتظار قليلاً.";
+    }
+    if (msg.includes("503") || msg.includes("overloaded")) {
+      return "الخدمة مشغولة جداً حالياً، حاول مرة أخرى.";
+    }
+
+    return "حدث خطأ أثناء معالجة الصورة. يرجى المحاولة لاحقاً.";
   };
 
   return (
@@ -159,34 +207,34 @@ const App: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-xl px-6 py-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-xl">
                   <div className="flex items-center gap-5">
                     <div className={`p-4 rounded-[1.5rem] shadow-lg ${
-                      state.toolMode === 'remix' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
+                      state.toolMode === 'remix' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600' : 'bg-blue-100 dark:bg-blue-900/40 text-primary'
                     }`}>
-                      {state.toolMode === 'remix' ? <Palette className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+                      {state.toolMode === 'remix' ? <Sparkles className="w-6 h-6" /> : <Microscope className="w-6 h-6" />}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {state.toolMode === 'remix' ? 'إستوديو لومينا' : 'تحليل لومينا'}
+                        {state.toolMode === 'remix' ? 'محسن الصور الذكي' : 'تحليل لومينا'}
                       </h2>
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'processing'].includes(state.currentStep) ? (
                           <div className="flex flex-col items-start">
                              <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
                                <RefreshCw className="w-3 h-3 animate-spin" /> 
-                               {state.toolMode === 'remix' ? 'جاري الرسم (نحاول بأكثر من طريقة)...' : 'جاري التحليل...'}
+                               {state.toolMode === 'remix' ? 'جاري تحسين البكسلات...' : 'جاري التحليل...'}
                              </span>
                              {longProcessTip && (
                                <span className="text-[10px] text-orange-500 font-medium mt-1 animate-fade-in">
-                                  نحاول استخدام نماذج بديلة لضمان الجودة، شكراً لصفرك...
+                                  تستغرق عملية التحسين عالية الدقة بعض الوقت...
                                </span>
                              )}
                           </div>
                         ) : state.currentStep === 'style-selection' ? (
-                          <span className="flex items-center gap-2 text-xs text-purple-500 font-bold px-3 py-1 rounded-full">
-                            <Sparkles className="w-3 h-3" /> بانتظار اختيار النمط
+                          <span className="flex items-center gap-2 text-xs text-blue-500 font-bold px-3 py-1 rounded-full">
+                            <Sparkles className="w-3 h-3" /> اختر نوع التحسين
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
-                            <Check className="w-3 h-3" /> تم بنجاح
+                            <Check className="w-3 h-3" /> تم التحسين بنجاح
                           </span>
                         )}
                       </div>
@@ -210,13 +258,13 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <a 
                           href={state.image || ''} 
-                          download="lumina_remix.png"
+                          download="lumina_enhanced.png"
                           className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:brightness-110 transition-all"
                         >
-                          <Download className="w-6 h-6" /> تحميل الصورة
+                          <Download className="w-6 h-6" /> تحميل الصورة المحسنة
                         </a>
                         <button 
-                          onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة معالجة بالذكاء الاصطناعي', url: window.location.href })}
+                          onClick={() => navigator.share && state.image && navigator.share({ title: 'نتائج لومينا', text: 'صورة محسنة بالذكاء الاصطناعي', url: window.location.href })}
                           className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 transition-all"
                         >
                           <Share2 className="w-6 h-6" /> مشاركة
@@ -226,20 +274,20 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="space-y-8">
-                    {/* Style Selection Panel */}
+                    {/* Enhancement Selection Panel */}
                     {state.currentStep === 'style-selection' && (
                       <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slide-in">
                         <div className="flex items-center gap-2 mb-6">
-                           <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl">
-                             <Palette className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                           <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl">
+                             <Sparkles className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                            </div>
                            <div>
-                              <h3 className="text-xl font-bold text-gray-900 dark:text-white">اختر نمط التحويل</h3>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">سيقوم الذكاء الاصطناعي بإعادة رسم صورتك بالكامل</p>
+                              <h3 className="text-xl font-bold text-gray-900 dark:text-white">أدوات التحسين</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">اختر الطريقة المناسبة لمعالجة صورتك</p>
                            </div>
                         </div>
                         
-                        <ArtisticGallery styles={REMIX_STYLES} onSelect={handleStyleSelect} />
+                        <ArtisticGallery styles={ENHANCEMENT_TOOLS} onSelect={handleStyleSelect} />
                         
                       </div>
                     )}
@@ -257,16 +305,16 @@ const App: React.FC = () => {
                     )}
                     
                     {state.toolMode === 'remix' && state.currentStep === 'results' && !state.error && (
-                      <div className="bg-gradient-to-br from-purple-600 to-indigo-800 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
+                      <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-12 rounded-[3rem] text-white shadow-2xl border border-white/10">
                           <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-3">
-                             <Sparkles className="w-8 h-8 text-yellow-300" />
-                             تمت إعادة التخيل!
+                             <Check className="w-8 h-8 text-green-300" />
+                             اكتمل التحسين!
                           </h3>
                           <p className="text-lg text-white/80 leading-relaxed font-medium mb-4">
-                               تم تحويل صورتك بنجاح بنمط <span className="text-white font-bold bg-white/20 px-2 py-0.5 rounded-lg">{selectedStyle?.name}</span>.
+                               تمت معالجة الصورة بنجاح باستخدام أداة <span className="text-white font-bold bg-white/20 px-2 py-0.5 rounded-lg">{selectedStyle?.name}</span>.
                           </p>
                           <button onClick={handleReset} className="mt-4 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all border border-white/20">
-                            تجربة نمط آخر
+                            تحسين صورة أخرى
                           </button>
                       </div>
                     )}

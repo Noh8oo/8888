@@ -1,4 +1,6 @@
 
+import React from 'react';
+
 export interface ImageAnalysis {
   colors: string[];
   style: string;
@@ -31,7 +33,7 @@ export interface AppState {
 export interface RemixStyle {
   id: string;
   name: string;
-  icon: string;
+  icon: string | React.ReactNode;
   prompt: string;
   color: string;
 }

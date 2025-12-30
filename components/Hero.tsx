@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Palette, Loader2, Sparkles } from 'lucide-react';
+import { Search, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -77,7 +77,7 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
           مختبر <span className="text-primary">لومينا</span> الذكي
         </h1>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-          أدوات احترافية لتحليل الصور وإعادة تخيلها بالذكاء الاصطناعي.
+          أدوات احترافية لتحليل الصور وتحسين جودتها بالذكاء الاصطناعي.
         </p>
       </div>
 
@@ -92,9 +92,9 @@ export const Hero: React.FC<HeroProps> = ({ onImageSelect }) => {
         />
         <ToolCard 
           id="fileInputRemix" 
-          title="إستوديو لومينا" 
-          desc="حول صورك إلى لوحات فنية، أنمي، أو حسّن جودتها بأسلوب واقعي." 
-          icon={<Palette className="w-8 h-8 text-purple-600" />}
+          title="تحسين الصور" 
+          desc="رفع الدقة، إزالة التشويش، وتوضيح التفاصيل (Upscaling)." 
+          icon={<Wand2 className="w-8 h-8 text-purple-600" />}
           colorClass="bg-purple-100 dark:bg-purple-900/30 border-purple-500"
           onFileSelect={(e) => handleFileInput(e, 'remix')}
         />
@@ -128,7 +128,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ id, title, desc, icon, colorClass, 
       {icon}
     </div>
     <div className="absolute top-6 right-6">
-       {title.includes("إستوديو") && <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />}
+       {title.includes("تحسين") && <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />}
     </div>
     <h3 className="text-2xl font-bold text-dark dark:text-white mb-3">{title}</h3>
     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-8">{desc}</p>
