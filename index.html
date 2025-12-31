@@ -4,12 +4,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>لومينا - تحليل الصور بالذكاء الاصطناعي</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -36,6 +36,10 @@
               'shine': 'shine 3s infinite',
               'chat-pulse': 'chatPulse 2s infinite',
               'ping-slow': 'ping 3s cubic-bezier(0, 0, 0.2, 1) infinite',
+            },
+            boxShadow: {
+              'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+              'strong': '0 10px 40px -10px rgba(0,0,0,0.2)',
             },
             keyframes: {
               fadeIn: {
@@ -84,45 +88,65 @@
       }
     </script>
     <style>
+      :root {
+        -webkit-tap-highlight-color: transparent;
+      }
       body {
-        background-color: #FFFFFF;
+        background-color: #FAFAFA; /* خلفية أثقل قليلاً */
         color: #212121;
         font-family: 'Tajawal', sans-serif;
+        overflow-x: hidden;
+        /* منع تحديد النص بشكل عام، سنفعله فقط للنصوص القابلة للنسخ */
+        user-select: none; 
+        -webkit-user-select: none;
       }
       .dark body {
-        background-color: #111827;
+        background-color: #0f172a;
         color: #F9FAFB;
       }
+      
+      /* السماح بتحديد النص فقط في الأماكن المخصصة */
+      .allow-select {
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+      }
+
+      /* تحسين شكل المؤشر للأزرار */
+      button, a, [role="button"] {
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-      }
-      .dark ::-webkit-scrollbar-track {
-        background: #1f2937;
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #ccc; 
-        border-radius: 4px;
+        background: #cbd5e1; 
+        border-radius: 5px;
+        border: 2px solid #FAFAFA;
       }
       .dark ::-webkit-scrollbar-thumb {
-        background: #4b5563; 
+        background: #475569; 
+        border-color: #0f172a;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #999; 
+        background: #94a3b8; 
       }
-      .dark ::-webkit-scrollbar-thumb:hover {
-        background: #6b7280; 
-      }
+      
+      /* تحسين الخلفية المنقطة */
       .bg-subtle-pattern {
-        background-color: #fafafa;
-        background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+        background-color: #f8fafc;
+        background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
         background-size: 24px 24px;
       }
       .dark .bg-subtle-pattern {
-        background-color: #111827;
-        background-image: radial-gradient(#374151 1.5px, transparent 1.5px);
+        background-color: #0f172a;
+        background-image: radial-gradient(#334155 1.5px, transparent 1.5px);
       }
     </style>
   <script type="importmap">

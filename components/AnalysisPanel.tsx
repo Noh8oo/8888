@@ -72,7 +72,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 animate-slide-in">
+      <div className="flex flex-col gap-6 animate-slide-in select-none">
         {/* Skeleton UI remains unchanged */}
         <div className="space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
@@ -100,7 +100,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   if (!analysis) return null;
 
   return (
-    <div className="flex flex-col gap-6 animate-slide-in">
+    <div className="flex flex-col gap-6 animate-slide-in select-none">
       {/* Colors Section */}
       <div className="space-y-3">
         <h4 className="text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold flex items-center gap-2">
@@ -155,7 +155,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         
         {/* Layout Card - ENHANCED */}
         <div 
-          className={`relative p-5 rounded-2xl border transition-all duration-500 ease-in-out cursor-pointer group 
+          className={`relative p-5 rounded-2xl border transition-all duration-500 ease-in-out cursor-pointer group select-none
             ${expandedSection === 'layout' 
               ? 'col-span-full bg-blue-50/50 dark:bg-blue-900/10 border-primary/30 shadow-lg ring-1 ring-primary/20' 
               : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1'
@@ -184,7 +184,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${expandedSection === 'layout' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
             <div className="overflow-hidden">
               {analysis.layoutDetail && (
-                <div className="relative mt-2 p-5 bg-white dark:bg-gray-900 rounded-xl border-l-4 border-primary text-sm text-gray-600 dark:text-gray-300 leading-relaxed shadow-sm">
+                <div className="relative mt-2 p-5 bg-white dark:bg-gray-900 rounded-xl border-l-4 border-primary text-sm text-gray-600 dark:text-gray-300 leading-relaxed shadow-sm allow-select">
                   <Quote className="absolute top-4 right-4 w-8 h-8 text-gray-100 dark:text-gray-800 transform -scale-x-100" />
                   <div className="relative z-10">
                     <h5 className="font-bold text-dark dark:text-white mb-2 text-xs uppercase opacity-70">تفاصيل تقنية</h5>
@@ -208,7 +208,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {analysis.viewDetail && (
               <button 
                 onClick={(e) => { e.stopPropagation(); toggleSection('view'); }}
-                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary dark:hover:text-primary transition-colors bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-full"
+                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary dark:hover:text-primary transition-colors bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-full cursor-pointer"
               >
                  <span>{expandedSection === 'view' ? 'إخفاء' : 'المزيد'}</span>
                  {expandedSection === 'view' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -218,7 +218,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <p className="font-bold text-lg text-dark dark:text-white leading-tight">{analysis.view}</p>
           
           {analysis.viewDetail && expandedSection === 'view' && (
-             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 leading-relaxed animate-fade-in bg-gray-50/50 dark:bg-gray-900/50 p-3 rounded-lg">
+             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 leading-relaxed animate-fade-in bg-gray-50/50 dark:bg-gray-900/50 p-3 rounded-lg allow-select">
                 {analysis.viewDetail}
              </div>
           )}
@@ -233,7 +233,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
            </h4>
            <button 
             onClick={copyPrompt}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
               copied 
                 ? 'bg-success text-white' 
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -246,7 +246,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
         
         <div className="relative group">
-          <div className={`w-full min-h-[140px] p-4 bg-gray-900 dark:bg-black text-gray-300 rounded-xl font-mono text-sm leading-relaxed shadow-inner transition-opacity ${isRefining ? 'opacity-50' : 'opacity-100'}`}>
+          <div className={`w-full min-h-[140px] p-4 bg-gray-900 dark:bg-black text-gray-300 rounded-xl font-mono text-sm leading-relaxed shadow-inner transition-opacity allow-select ${isRefining ? 'opacity-50' : 'opacity-100'}`}>
              {currentDescription}
           </div>
           {isRefining && (
@@ -266,7 +266,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </h4>
             <button 
               onClick={handleShuffleFilters}
-              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary transition-all duration-300 focus:outline-none"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary transition-all duration-300 focus:outline-none cursor-pointer"
               title="عرض فلاتر عشوائية"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isShuffling ? 'animate-spin text-primary' : ''}`} />
@@ -279,7 +279,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                 key={filter.id}
                 onClick={() => onRefineDescription(filter.prompt)}
                 disabled={isRefining}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-300 group shadow-sm hover:shadow-md hover:-translate-y-0.5 animate-fade-in"
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-300 group shadow-sm hover:shadow-md hover:-translate-y-0.5 animate-fade-in cursor-pointer select-none"
               >
                 <filter.icon className="w-6 h-6 text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors duration-300" />
                 <span className="text-xs font-bold text-gray-600 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-white transition-colors">
@@ -302,7 +302,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               placeholder="مثال: 'أضف سيارة طائرة'، 'اجعل الألوان داكنة'، 'ترجم للانجليزية'"
-              className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary dark:text-white transition-all outline-none"
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary dark:text-white transition-all outline-none allow-select"
               onKeyDown={(e) => e.key === 'Enter' && handleRefineSubmit()}
               disabled={isRefining}
             />
@@ -310,7 +310,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               onClick={handleRefineSubmit} 
               loading={isRefining}
               disabled={!instruction.trim() || isRefining}
-              className="px-4"
+              className="px-4 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 ml-1" />
               تحديث

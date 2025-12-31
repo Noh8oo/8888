@@ -2,13 +2,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-// تهيئة العميل باستخدام المفتاح من البيئة
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// استخدام مفتاح API من البيئة أو المفتاح المباشر كاحتياطي
+const API_KEY = process.env.API_KEY || "AIzaSyD8tNXgDiYG9yDjNSVyC_dYIqzPe8lhuSs";
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// استخدام الموديل المستقر والسريع لتفادي مشاكل الحصة (429 Resource Exhausted)
-const MODEL_NAME = 'gemini-1.5-flash';
+// استخدام الموديل الأحدث لتجنب أخطاء 404
+const MODEL_NAME = 'gemini-3-flash-preview';
 
-// تنظيف سلسلة Base64
 const cleanBase64Data = (base64: string): string => {
   if (base64.includes(',')) {
     return base64.split(',')[1];
@@ -16,71 +16,60 @@ const cleanBase64Data = (base64: string): string => {
   return base64;
 };
 
+// إعدادات الأمان
+const SAFETY_SETTINGS = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+];
+
+const getFriendlyErrorMessage = (error: any): string => {
+  const msg = error?.toString() || "";
+  if (msg.includes("API key") || msg.includes("403")) return "مفتاح API غير صالح.";
+  if (msg.includes("404") || msg.includes("NOT_FOUND")) return "الموديل غير متوفر حالياً، يرجى المحاولة لاحقاً.";
+  if (msg.includes("Failed to call") || msg.includes("fetch")) return "مشكلة في الاتصال بالإنترنت.";
+  if (msg.includes("429")) return "الخدمة مشغولة جداً، حاول بعد دقيقة.";
+  if (msg.includes("SAFETY")) return "تم حظر الصورة بواسطة فلاتر الأمان.";
+  return "حدث خطأ غير متوقع.";
+};
+
 // ---------------------------------------------------------
-// خدمة التحليل (Analysis)
+// خدمة التحليل
 // ---------------------------------------------------------
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   try {
     const cleanImage = cleanBase64Data(base64Image);
-
-    // نطلب من الموديل إرجاع JSON بشكل صارم
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: cleanImage
-              }
-            },
-            {
-              text: `Analyze this image precisely. Return a VALID JSON object (no markdown) with these exact keys:
-              {
-                "colors": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"],
-                "style": "art style (in Arabic)",
-                "layout": "composition summary (in Arabic)",
-                "layoutDetail": "technical details about balance and framing (in Arabic)",
-                "view": "camera angle (in Arabic)",
-                "viewDetail": "detailed angle description (in Arabic)",
-                "objects": ["obj1", "obj2"] (in Arabic),
-                "prompt": "Highly detailed description for image generation (in Arabic)"
-              }`
-            }
-          ]
-        }
-      ],
-      config: {
-        temperature: 0.4,
-        responseMimeType: "application/json" // ضمان الحصول على JSON
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
+          { text: `Analyze this image precisely. Return valid JSON only: { "colors": [], "style": "Arabic", "layout": "Arabic", "layoutDetail": "Arabic", "view": "Arabic", "viewDetail": "Arabic", "objects": ["Arabic"], "prompt": "Arabic" }` }
+        ]
+      }],
+      config: { 
+        responseMimeType: "application/json",
+        safetySettings: SAFETY_SETTINGS,
       }
     });
 
     const text = response.text || "{}";
-    // تنظيف النص في حال وصل معه Markdown
     const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
     return JSON.parse(jsonString) as ImageAnalysis;
-
   } catch (error) {
-    console.error("Gemini Analysis Error:", error);
-    // إرجاع بيانات افتراضية في حال الفشل لتجنب تحطم التطبيق
+    console.error("Analysis Error Details:", error);
     return {
-      colors: ["#cccccc", "#888888"],
-      style: "غير محدد",
-      layout: "تحليل عام",
-      view: "واجهة أمامية",
-      objects: ["عنصر غير معروف"],
-      prompt: "عذراً، واجهنا مشكلة في الاتصال بالخدمة لتحليل الصورة. يرجى المحاولة لاحقاً."
+      colors: ["#eee", "#ddd"], style: "غير محدد", layout: "فشل التحليل", view: "-", objects: [], 
+      prompt: `عذراً: ${getFriendlyErrorMessage(error)}`
     };
   }
 };
 
 // ---------------------------------------------------------
-// خدمة التحسين الهجين (AI Parameters + Local Canvas)
+// خدمة المعالجة والتحسين (Engine)
 // ---------------------------------------------------------
 
 interface ImageAdjustments {
@@ -89,133 +78,192 @@ interface ImageAdjustments {
   saturation: number;
   sepia: number;
   warmth: number;
+  sharpenAmount: number;
+  vignette: number;
+  upscale: boolean; // معلمة جديدة لرفع الدقة
 }
 
-// دالة مساعدة للحصول على إعدادات الفلتر من الذكاء الاصطناعي
 const getEnhancementParameters = async (base64Image: string, instruction: string): Promise<ImageAdjustments> => {
+  const safeDefaults: ImageAdjustments = { 
+    brightness: 1.02, 
+    contrast: 1.05, 
+    saturation: 1.05, 
+    sepia: 0, 
+    warmth: 0, 
+    sharpenAmount: 0.1,
+    vignette: 0.1,
+    upscale: false 
+  };
+
+  // الكشف التلقائي عن نية رفع الدقة من التعليمات
+  const isUpscaleRequested = instruction.toLowerCase().includes('auto') || 
+                             instruction.toLowerCase().includes('upscale') ||
+                             instruction.toLowerCase().includes('resolution') ||
+                             instruction.toLowerCase().includes('detail');
+
   try {
     const cleanImage = cleanBase64Data(base64Image);
-    
-    // نستخدم فلاش لأنه سريع جداً لاستخراج الأرقام
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
-            { 
-              text: `Act as a professional photo editor. Based on the image content and this goal: "${instruction}", return a JSON object with numeric adjustments to achieve this look:
-              {
-                "brightness": 0.5 to 1.5 (default 1.0),
-                "contrast": 0.5 to 1.5 (default 1.0),
-                "saturation": 0.0 to 2.0 (default 1.0),
-                "sepia": 0.0 to 1.0 (default 0),
-                "warmth": -50 (blue) to 50 (orange) (default 0)
-              }`
-            }
-          ]
-        }
-      ],
-      config: { responseMimeType: "application/json" }
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
+          { text: `Photo Retouching task. Goal: "${instruction}". 
+            Output VALID JSON ONLY.
+            Constraints:
+            - brightness: 0.9 to 1.15
+            - contrast: 0.95 to 1.15
+            - saturation: 0.9 to 1.25
+            - sharpenAmount: 0.0 to 0.5 (Higher if requesting clarity/upscale)
+            
+            JSON Format:
+            { "brightness": number, "contrast": number, "saturation": number, "sepia": number, "warmth": number, "sharpenAmount": number, "vignette": number }` 
+          }
+        ]
+      }],
+      config: { 
+        responseMimeType: "application/json",
+        safetySettings: SAFETY_SETTINGS,
+      }
     });
 
-    const params = JSON.parse(response.text || "{}");
+    const p = JSON.parse(response.text || "{}");
     return {
-      brightness: Number(params.brightness) || 1,
-      contrast: Number(params.contrast) || 1,
-      saturation: Number(params.saturation) || 1,
-      sepia: Number(params.sepia) || 0,
-      warmth: Number(params.warmth) || 0
+      brightness: Number(p.brightness) || safeDefaults.brightness,
+      contrast: Number(p.contrast) || safeDefaults.contrast,
+      saturation: Number(p.saturation) || safeDefaults.saturation,
+      sepia: Number(p.sepia) || safeDefaults.sepia,
+      warmth: Number(p.warmth) || safeDefaults.warmth,
+      sharpenAmount: Math.min(Number(p.sharpenAmount) || safeDefaults.sharpenAmount, 0.8), // زيادة الحد المسموح للحدة
+      vignette: Number(p.vignette) || safeDefaults.vignette,
+      upscale: isUpscaleRequested // تفعيل رفع الدقة
     };
-
   } catch (e) {
-    console.warn("AI param fallback used");
-    // إعدادات افتراضية ذكية بناءً على الكلمات المفتاحية في حال فشل الاتصال
-    const i = instruction.toLowerCase();
-    if (i.includes('warm') || i.includes('دافئ')) return { brightness: 1.05, contrast: 1.1, saturation: 1.2, sepia: 0.1, warmth: 20 };
-    if (i.includes('cool') || i.includes('بارد')) return { brightness: 1.0, contrast: 1.1, saturation: 0.9, sepia: 0, warmth: -20 };
-    if (i.includes('bw') || i.includes('black') || i.includes('أسود')) return { brightness: 1.1, contrast: 1.3, saturation: 0, sepia: 0, warmth: 0 };
-    
-    return { brightness: 1.1, contrast: 1.1, saturation: 1.1, sepia: 0, warmth: 0 };
+    console.error("Gemini API Failed, using defaults. Error:", e);
+    // إذا فشل الـ API وكان الطلب رفع دقة، نقوم بذلك افتراضياً
+    return { ...safeDefaults, upscale: isUpscaleRequested };
   }
 };
 
-// دالة تطبيق الفلاتر محلياً (لا تستهلك حصة API للصور، وتتم في المتصفح)
 const applyFiltersLocally = (base64Image: string, params: ImageAdjustments): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error("Canvas not supported")); return; }
-
-      // 1. رسم الصورة الأصلية
-      ctx.drawImage(img, 0, 0);
-
-      // 2. تطبيق فلاتر CSS الأساسية
-      // الترتيب مهم: السطوع والتباين أولاً
-      const filterString = `brightness(${params.brightness}) contrast(${params.contrast}) saturate(${params.saturation}) sepia(${params.sepia})`;
-      ctx.filter = filterString;
-      
-      // إعادة الرسم لتطبيق الفلتر على البيكسلات
-      ctx.drawImage(img, 0, 0);
-      ctx.filter = 'none'; // إعادة تعيين الفلتر
-
-      // 3. تطبيق طبقة الدفء/البرودة (Overlay) باستخدام المزج اللوني
-      if (params.warmth !== 0) {
-        ctx.globalCompositeOperation = 'overlay'; // أو soft-light
-        if (params.warmth > 0) {
-           // دافئ (برتقالي)
-           ctx.fillStyle = `rgba(255, 160, 0, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})`;
-        } else {
-           // بارد (أزرق)
-           ctx.fillStyle = `rgba(0, 100, 255, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})`;
-        }
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      try {
+        const canvas = document.createElement('canvas');
         
-        // إعادة الوضع الطبيعي
-        ctx.globalCompositeOperation = 'source-over';
-      }
+        // منطق رفع الدقة: إذا تم طلب Upscale، نضاعف أبعاد الكانفاس
+        const scaleFactor = params.upscale ? 2 : 1;
+        canvas.width = img.width * scaleFactor;
+        canvas.height = img.height * scaleFactor;
+        
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) { reject(new Error("Canvas API unsupported")); return; }
 
-      // إرجاع الصورة بجودة عالية
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
+        // تفعيل خوارزميات التنعيم عالية الجودة (Bicubic approximation)
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // 1. رسم الصورة (مكبرة أو بالحجم الأصلي)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // 2. تطبيق التعديلات اللونية
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) return;
+        
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.imageSmoothingQuality = 'high';
+
+        tempCtx.filter = `brightness(${params.brightness}) contrast(${params.contrast}) saturate(${params.saturation}) sepia(${params.sepia})`;
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        ctx.drawImage(tempCanvas, 0, 0);
+
+        // 3. التوضيح (Sharpening) - تم تحسين الخوارزمية للتعامل مع الصور المكبرة
+        // إذا تم التكبير، نزيد قوة التوضيح لتعويض نعومة الـ Upscale
+        const effectiveSharpen = params.upscale ? Math.max(params.sharpenAmount, 0.3) : params.sharpenAmount;
+        
+        if (effectiveSharpen > 0.05) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // استخدام Blur أقل للصورة المكبرة لحفظ التفاصيل الدقيقة
+            tempCtx.filter = params.upscale ? 'blur(2px)' : 'blur(1px)';
+            tempCtx.drawImage(canvas, 0, 0);
+            const blurredData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            const data = imageData.data;
+            const blur = blurredData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i] + (data[i] - blur[i]) * effectiveSharpen;
+                const g = data[i+1] + (data[i+1] - blur[i+1]) * effectiveSharpen;
+                const b = data[i+2] + (data[i+2] - blur[i+2]) * effectiveSharpen;
+                
+                data[i] = Math.max(0, Math.min(255, r));
+                data[i+1] = Math.max(0, Math.min(255, g));
+                data[i+2] = Math.max(0, Math.min(255, b));
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // 4. تلوين الجو العام
+        if (params.warmth !== 0) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'soft-light';
+            ctx.fillStyle = params.warmth > 0 
+                ? `rgba(255, 160, 60, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})` 
+                : `rgba(60, 160, 255, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+
+        // 5. Vignette
+        if (params.vignette > 0) {
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.6,
+                canvas.width / 2, canvas.height / 2, canvas.width * 1.2
+            );
+            gradient.addColorStop(0, "rgba(0,0,0,0)");
+            gradient.addColorStop(1, `rgba(0,0,0,${Math.min(params.vignette, 0.5)})`);
+            
+            ctx.save();
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+
+        // تصدير بجودة عالية جداً
+        resolve(canvas.toDataURL('image/jpeg', 0.98));
+      } catch (err) {
+        reject(err);
+      }
     };
-    img.onerror = reject;
+    img.onerror = () => reject(new Error("فشل تحميل الصورة"));
     img.src = base64Image;
   });
 };
 
 export const remixImageWithGemini = async (highResImage: string, instruction: string, lowResHint?: string): Promise<string> => {
-  // نستخدم الصورة الصغيرة (إن وجدت) لاستخراج الأرقام بسرعة وتوفير الباندويث
-  // ثم نطبق التعديلات على الصورة الكبيرة محلياً
   const imageForAnalysis = lowResHint || highResImage;
   const params = await getEnhancementParameters(imageForAnalysis, instruction);
   return await applyFiltersLocally(highResImage, params);
 };
 
-// ---------------------------------------------------------
-// تحسين النصوص والدردشة
-// ---------------------------------------------------------
-
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `Original: "${originalDescription}". Instruction: "${userInstruction}". Rewrite the description in Arabic based on the instruction.` }]
-        }
-      ]
+      contents: [{ role: "user", parts: [{ text: `Original: "${originalDescription}". Instruction: "${userInstruction}". Rewrite in Arabic.` }] }],
+      config: { safetySettings: SAFETY_SETTINGS }
     });
     return response.text || originalDescription;
-  } catch (error) {
-    return originalDescription;
-  }
+  } catch (error) { return originalDescription; }
 };
 
 export const chatWithGemini = async (history: any[], message: string): Promise<string> => {
@@ -223,15 +271,12 @@ export const chatWithGemini = async (history: any[], message: string): Promise<s
     const chat = ai.chats.create({
       model: MODEL_NAME,
       history: history,
-      config: {
-        systemInstruction: "You are a helpful design assistant named Lumina. You speak Arabic.",
+      config: { 
+        systemInstruction: "You are Lumina, a helpful Arabic design assistant.",
+        safetySettings: SAFETY_SETTINGS
       }
     });
-
-    const result = await chat.sendMessage({ message: message });
+    const result = await chat.sendMessage({ message });
     return result.text;
-  } catch (error) {
-    console.error("Chat Error:", error);
-    return "عذراً، أواجه ضغطاً عالياً حالياً. يرجى المحاولة بعد قليل.";
-  }
+  } catch (error) { return "عذراً، الخدمة مشغولة حالياً."; }
 };

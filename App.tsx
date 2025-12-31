@@ -8,15 +8,22 @@ import { ChatWidget } from './components/ChatWidget';
 import { ArtisticGallery } from './components/ArtisticGallery';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Zap, Move, Sun, ShieldCheck, Microscope, Monitor, Film, Palette } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Zap, Move, Sun, ShieldCheck, Microscope, Monitor, Film, Palette, Maximize } from 'lucide-react';
 
 const ENHANCEMENT_TOOLS: RemixStyle[] = [
   { 
-    id: 'upscale', 
-    name: 'تحسين ذكي (Auto)', 
+    id: 'upscale_auto', 
+    name: 'تحسين ذكي + رفع دقة', 
     icon: <Sparkles className="w-8 h-8" />, 
     color: 'bg-blue-500', 
-    prompt: 'Auto enhance: Clean, balanced brightness, good contrast, natural saturation.' 
+    prompt: 'Auto enhance: Upscale resolution, clean, balanced brightness, good contrast, natural saturation.' 
+  },
+  { 
+    id: 'super_res', 
+    name: 'توضيح فائق (Super Res)', 
+    icon: <Maximize className="w-8 h-8" />, 
+    color: 'bg-emerald-500', 
+    prompt: 'Super resolution: Upscale, high clarity, sharpen details, reduce noise, keep natural colors.' 
   },
   { 
     id: 'cinematic', 
@@ -38,13 +45,6 @@ const ENHANCEMENT_TOOLS: RemixStyle[] = [
     icon: <Sun className="w-8 h-8" />, 
     color: 'bg-orange-500', 
     prompt: 'Warm lighting: Golden hour feel, orange tint, bright and sunny.' 
-  },
-  { 
-    id: 'cool', 
-    name: 'بارد (Cool)', 
-    icon: <Monitor className="w-8 h-8" />, 
-    color: 'bg-indigo-500', 
-    prompt: 'Cool tone: Blue tint, modern, clean, cold atmosphere.' 
   },
   { 
     id: 'bw', 

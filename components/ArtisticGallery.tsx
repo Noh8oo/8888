@@ -10,12 +10,12 @@ interface ArtisticGalleryProps {
 
 export const ArtisticGallery: React.FC<ArtisticGalleryProps> = ({ styles, onSelect }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-in">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-in select-none">
       {styles.map((style) => (
         <button
           key={style.id}
           onClick={() => onSelect(style)}
-          className="group relative h-64 rounded-[2.5rem] overflow-hidden text-center transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl focus:outline-none ring-offset-4 focus:ring-2 ring-primary/50 border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
+          className="group relative h-64 rounded-[2.5rem] overflow-hidden text-center transition-all duration-500 hover:-translate-y-2 hover:shadow-strong focus:outline-none ring-offset-4 focus:ring-2 ring-primary/50 border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 select-none cursor-pointer"
         >
           {/* Main Background Tint */}
           <div className={`absolute inset-0 ${style.color} opacity-5 group-hover:opacity-10 transition-opacity duration-500`} />
