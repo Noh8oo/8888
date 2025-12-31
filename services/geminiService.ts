@@ -96,6 +96,7 @@ const getEnhancementParameters = async (base64Image: string, instruction: string
   try {
     const cleanImage = cleanBase64Data(base64Image);
     
+    // نستخدم فلاش لأنه سريع جداً لاستخراج الأرقام
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: [
@@ -104,7 +105,7 @@ const getEnhancementParameters = async (base64Image: string, instruction: string
           parts: [
             { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
             { 
-              text: `Act as a professional photo editor. based on the image content and this goal: "${instruction}", return a JSON object with numeric adjustments:
+              text: `Act as a professional photo editor. Based on the image content and this goal: "${instruction}", return a JSON object with numeric adjustments to achieve this look:
               {
                 "brightness": 0.5 to 1.5 (default 1.0),
                 "contrast": 0.5 to 1.5 (default 1.0),
@@ -130,12 +131,17 @@ const getEnhancementParameters = async (base64Image: string, instruction: string
 
   } catch (e) {
     console.warn("AI param fallback used");
-    // إعدادات افتراضية في حال فشل الاتصال
+    // إعدادات افتراضية ذكية بناءً على الكلمات المفتاحية في حال فشل الاتصال
+    const i = instruction.toLowerCase();
+    if (i.includes('warm') || i.includes('دافئ')) return { brightness: 1.05, contrast: 1.1, saturation: 1.2, sepia: 0.1, warmth: 20 };
+    if (i.includes('cool') || i.includes('بارد')) return { brightness: 1.0, contrast: 1.1, saturation: 0.9, sepia: 0, warmth: -20 };
+    if (i.includes('bw') || i.includes('black') || i.includes('أسود')) return { brightness: 1.1, contrast: 1.3, saturation: 0, sepia: 0, warmth: 0 };
+    
     return { brightness: 1.1, contrast: 1.1, saturation: 1.1, sepia: 0, warmth: 0 };
   }
 };
 
-// دالة تطبيق الفلاتر محلياً (لا تستهلك حصة API للصور)
+// دالة تطبيق الفلاتر محلياً (لا تستهلك حصة API للصور، وتتم في المتصفح)
 const applyFiltersLocally = (base64Image: string, params: ImageAdjustments): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -151,39 +157,44 @@ const applyFiltersLocally = (base64Image: string, params: ImageAdjustments): Pro
       ctx.drawImage(img, 0, 0);
 
       // 2. تطبيق فلاتر CSS الأساسية
+      // الترتيب مهم: السطوع والتباين أولاً
       const filterString = `brightness(${params.brightness}) contrast(${params.contrast}) saturate(${params.saturation}) sepia(${params.sepia})`;
       ctx.filter = filterString;
       
-      // إعادة الرسم لتطبيق الفلتر
+      // إعادة الرسم لتطبيق الفلتر على البيكسلات
       ctx.drawImage(img, 0, 0);
       ctx.filter = 'none'; // إعادة تعيين الفلتر
 
-      // 3. تطبيق طبقة الدفء/البرودة (Overlay)
+      // 3. تطبيق طبقة الدفء/البرودة (Overlay) باستخدام المزج اللوني
       if (params.warmth !== 0) {
-        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalCompositeOperation = 'overlay'; // أو soft-light
         if (params.warmth > 0) {
            // دافئ (برتقالي)
-           ctx.fillStyle = `rgba(255, 160, 0, ${Math.min(Math.abs(params.warmth) / 100, 0.4)})`;
+           ctx.fillStyle = `rgba(255, 160, 0, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})`;
         } else {
            // بارد (أزرق)
-           ctx.fillStyle = `rgba(0, 100, 255, ${Math.min(Math.abs(params.warmth) / 100, 0.4)})`;
+           ctx.fillStyle = `rgba(0, 100, 255, ${Math.min(Math.abs(params.warmth) / 100, 0.3)})`;
         }
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // إعادة الوضع الطبيعي
         ctx.globalCompositeOperation = 'source-over';
       }
 
-      resolve(canvas.toDataURL('image/jpeg', 0.90));
+      // إرجاع الصورة بجودة عالية
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
     img.onerror = reject;
     img.src = base64Image;
   });
 };
 
-export const remixImageWithGemini = async (base64Image: string, instruction: string): Promise<string> => {
-  // هذه الطريقة توفر الحصة بشكل كبير لأنها تستخدم نموذج النصوص فقط لاستخراج الأرقام
-  // ثم تقوم بمعالجة الصورة في المتصفح
-  const params = await getEnhancementParameters(base64Image, instruction);
-  return await applyFiltersLocally(base64Image, params);
+export const remixImageWithGemini = async (highResImage: string, instruction: string, lowResHint?: string): Promise<string> => {
+  // نستخدم الصورة الصغيرة (إن وجدت) لاستخراج الأرقام بسرعة وتوفير الباندويث
+  // ثم نطبق التعديلات على الصورة الكبيرة محلياً
+  const imageForAnalysis = lowResHint || highResImage;
+  const params = await getEnhancementParameters(imageForAnalysis, instruction);
+  return await applyFiltersLocally(highResImage, params);
 };
 
 // ---------------------------------------------------------
