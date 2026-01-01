@@ -2,7 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-// Function to get a fresh AI instance using the current environment key
+// Standard initialization using the environment key
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const ANALYSIS_MODEL = 'gemini-3-flash-preview';
@@ -13,7 +13,7 @@ const cleanBase64Data = (base64: string): string => {
   return base64;
 };
 
-// Optimal safety settings for free tier to minimize "Safety" rejections
+// Balanced safety settings for the free tier
 const SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
@@ -31,12 +31,12 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
         role: "user",
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
-          { text: `Analyze this image. Output JSON: { "colors": ["#hex"], "style": "Arabic", "layout": "Arabic", "layoutDetail": "Arabic", "view": "Arabic", "viewDetail": "Arabic", "objects": ["Arabic"], "prompt": "Arabic description" }` }
+          { text: `Analyze this image in detail. Return ONLY a valid JSON object: { "colors": ["#hex1", "#hex2"], "style": "Arabic style name", "layout": "Arabic description", "layoutDetail": "Detailed Arabic blueprint", "view": "Arabic angle", "viewDetail": "Detailed Arabic camera info", "objects": ["Arabic object 1", "Arabic object 2"], "prompt": "Comprehensive Arabic prompt for recreation" }` }
         ]
       }],
       config: { 
         responseMimeType: "application/json",
-        safetySettings: SAFETY_SETTINGS
+        safetySettings: SAFETY_SETTINGS 
       }
     });
 
@@ -45,14 +45,13 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
     return JSON.parse(jsonString) as ImageAnalysis;
   } catch (error: any) {
     console.error("Analysis Error:", error);
-    // Generic fallback for free tier errors
     return { 
-      colors: ["#1E88E5"], 
-      style: "تحليل سريع", 
-      layout: "تخطيط تلقائي", 
-      view: "منظور قياسي", 
-      objects: ["صورة مرفعوعة"], 
-      prompt: "حدث ضغط على الخادم، يرجى المحاولة مرة أخرى لاحقاً." 
+      colors: ["#1E88E5", "#42A5F5"], 
+      style: "تحليل كلاسيكي", 
+      layout: "تخطيط متوازن", 
+      view: "منظور عين الطائر", 
+      objects: ["عناصر بصرية"], 
+      prompt: "تعذر الحصول على وصف كامل، يرجى إعادة المحاولة." 
     };
   }
 };
@@ -62,23 +61,22 @@ export const remixImageWithGemini = async (base64Image: string, instruction: str
     const ai = getAI();
     const cleanImage = cleanBase64Data(base64Image);
     
-    // Very simplified technical prompt to satisfy free tier safety/complexity limits
-    const finalPrompt = mode === 'restore' 
-      ? `Improve clarity, fix noise, sharpen edges. Goal: ${instruction}`
-      : `Apply artistic edit: ${instruction}. Keep realism.`;
+    // Efficient prompting for stable results on free tier
+    const prompt = mode === 'restore' 
+      ? `Professional restoration: Sharpen details, fix pixelation, remove noise, and enhance clarity. Instructions: ${instruction}`
+      : `Artistic modification: ${instruction}. Maintain high quality and realistic details.`;
 
     const response = await ai.models.generateContent({
       model: EDITING_MODEL,
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
-          { text: finalPrompt }
+          { text: prompt }
         ]
       },
       config: { 
         safetySettings: SAFETY_SETTINGS,
-        // Lower temperature for stability in free tier
-        temperature: 0.4
+        temperature: 0.5
       }
     });
 
@@ -90,14 +88,14 @@ export const remixImageWithGemini = async (base64Image: string, instruction: str
       }
     }
     
-    throw new Error("SERVER_BUSY");
+    throw new Error("لم يتمكن النظام من توليد الصورة. حاول تغيير الوصف أو حجم الصورة.");
 
   } catch (error: any) {
     console.error("Remix Error:", error);
-    if (error.message?.includes("Safety") || error.message?.includes("candidate")) {
-      throw new Error("الصورة تحتوي على عناصر تمنع معالجتها آلياً.");
+    if (error.message.includes("candidate")) {
+        throw new Error("عذراً، رفض النظام معالجة هذه الصورة لدواعي الأمان أو الحماية.");
     }
-    throw new Error("الخادم مشغول حالياً بسبب كثرة الطلبات في النسخة المجانية. حاول مجدداً بعد ثوانٍ.");
+    throw new Error("حدث خطأ أثناء المعالجة، يرجى المحاولة مرة أخرى.");
   }
 };
 
@@ -106,7 +104,7 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: ANALYSIS_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Improve: "${originalDescription}" with "${userInstruction}". Arabic only.` }] }],
+      contents: [{ role: "user", parts: [{ text: `Original Prompt: "${originalDescription}". Modification: "${userInstruction}". Rewrite a new improved description in Arabic only.` }] }],
       config: { safetySettings: SAFETY_SETTINGS }
     });
     return response.text || originalDescription;
@@ -120,11 +118,11 @@ export const chatWithGemini = async (history: any[], message: string): Promise<s
       model: ANALYSIS_MODEL,
       history: history,
       config: { 
-        systemInstruction: "You are Lumina, a helpful assistant. Keep answers brief and in Arabic.",
+        systemInstruction: "أنت لومينا، مساعد ذكي متخصص في التصميم وتحليل الصور. ردودك يجب أن تكون ملهمة ومختصرة وباللغة العربية.",
         safetySettings: SAFETY_SETTINGS
       }
     });
     const result = await chat.sendMessage({ message });
     return result.text;
-  } catch (error) { return "عذراً، الخدمة مشغولة حالياً."; }
+  } catch (error) { return "عذراً، لا يمكنني الرد الآن. حاول لاحقاً."; }
 };

@@ -14,28 +14,28 @@ import { Button } from './components/Button';
 const ENHANCEMENT_TOOLS: RemixStyle[] = [
   { 
     id: 'smart_enhance', 
-    name: 'تحسين تلقائي (Auto)', 
+    name: 'تحسين شامل (Auto)', 
     icon: <Sparkles className="w-8 h-8" />, 
     color: 'bg-blue-500', 
-    prompt: 'Enhance lighting and colors.' 
+    prompt: 'Full image enhancement: improve lighting, colors, and balance.' 
   },
   { 
     id: 'super_res', 
-    name: 'توضيح التفاصيل (Clarify)', 
+    name: 'رفع الدقة (4K Upscale)', 
     icon: <Maximize className="w-8 h-8" />, 
     color: 'bg-emerald-500', 
-    prompt: 'Fix blur and sharpen details.' 
+    prompt: 'Upscale image to high resolution, remove artifacts and sharpen details.' 
   },
   { 
     id: 'restoration', 
-    name: 'ترميم سريع (Restore)', 
+    name: 'ترميم وتوضيح (Restore)', 
     icon: <Microscope className="w-8 h-8" />, 
     color: 'bg-violet-500', 
-    prompt: 'Restore quality and remove noise.' 
+    prompt: 'Professional restoration: fix blur, noise, and clarify the image.' 
   },
   { 
     id: 'custom_edit', 
-    name: 'تعديل حر (Custom)', 
+    name: 'تعديل سحري (Magic Edit)', 
     icon: <Wand2 className="w-8 h-8" />, 
     color: 'bg-pink-500', 
     prompt: 'CUSTOM' 
@@ -43,11 +43,11 @@ const ENHANCEMENT_TOOLS: RemixStyle[] = [
 ];
 
 const SUGGESTIONS = [
-  { id: 'retro', text: 'Vintage filter', label: 'فلتر قديم', icon: <Palette className="w-3 h-3" /> },
-  { id: 'remove_bg', text: 'Clear background', label: 'تصفية الخلفية', icon: <Eraser className="w-3 h-3" /> },
-  { id: 'rain', text: 'Make it rain', label: 'أجواء ماطرة', icon: <CloudRain className="w-3 h-3" /> },
-  { id: 'sketch', text: 'Pencil sketch', label: 'رسم رصاص', icon: <PenTool className="w-3 h-3" /> },
-  { id: 'sunset', text: 'Sunset light', label: 'إضاءة غروب', icon: <Sun className="w-3 h-3" /> },
+  { id: 'retro', text: 'Add a professional vintage retro look', label: 'نمط قديم', icon: <Palette className="w-3 h-3" /> },
+  { id: 'remove_bg', text: 'Clean and simplify the background', label: 'تصفية الخلفية', icon: <Eraser className="w-3 h-3" /> },
+  { id: 'rain', text: 'Apply a cinematic rainy weather effect', label: 'أجواء ماطرة', icon: <CloudRain className="w-3 h-3" /> },
+  { id: 'sketch', text: 'Turn this into an artistic pencil sketch', label: 'رسم يدوي', icon: <PenTool className="w-3 h-3" /> },
+  { id: 'sunset', text: 'Apply golden hour sunset lighting', label: 'إضاءة غروب', icon: <Sun className="w-3 h-3" /> },
 ];
 
 const App: React.FC = () => {
@@ -86,7 +86,7 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
       } catch (error: any) {
-        setState(prev => ({ ...prev, error: error.message }));
+        setState(prev => ({ ...prev, error: "حدث خطأ أثناء تحليل الصورة. يرجى المحاولة مرة أخرى." }));
       } finally {
         setLoading(false);
       }
@@ -135,7 +135,7 @@ const App: React.FC = () => {
       const refined = await refineDescriptionWithGemini(currentDescription, instruction);
       setCurrentDescription(refined);
     } catch (error) {
-      setState(prev => ({ ...prev, error: "فشل تحديث الوصف، يرجى المحاولة لاحقاً." }));
+      // Slient error for refining to maintain UX
     } finally {
       setIsRefining(false);
     }
@@ -163,12 +163,12 @@ const App: React.FC = () => {
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-red-600">عذراً، الخادم مشغول</h3>
+                <h3 className="text-xl font-bold text-red-600">عذراً، تعذر إكمال العملية</h3>
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed px-4">
                   {state.error}
-                  <span className="block mt-2 text-sm opacity-70 italic">نصيحة: الخطة المجانية لها حدود يومية، جرب استخدام صورة أصغر أو المحاولة لاحقاً.</span>
+                  <span className="block mt-2 text-sm opacity-70 italic font-medium">نصيحة: قد يكون هذا بسبب حجم الصورة أو ضغط على الخادم. حاول مجدداً بعد قليل.</span>
                 </p>
-                <button onClick={handleReset} className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:brightness-110 transition-all">
+                <button onClick={handleReset} className="w-full max-w-xs mx-auto py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all">
                   العودة والمحاولة مجدداً
                 </button>
               </div>
@@ -185,7 +185,7 @@ const App: React.FC = () => {
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'processing'].includes(state.currentStep) ? (
                            <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
-                             <RefreshCw className="w-3 h-3 animate-spin" /> جاري العمل...
+                             <RefreshCw className="w-3 h-3 animate-spin" /> جاري المعالجة...
                            </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/20">
@@ -195,7 +195,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm shadow-md hover:bg-gray-50 transition-all">
+                  <button onClick={handleReset} className="px-8 py-4 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold text-sm shadow-md hover:bg-gray-50 active:scale-95 transition-all">
                     <ArrowLeft className="w-5 h-5 ml-2" /> العودة
                   </button>
                 </div>
@@ -210,10 +210,10 @@ const App: React.FC = () => {
                     
                     {state.currentStep === 'results' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-slide-in">
-                        <a href={state.image || ''} download="lumina_result.png" className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
+                        <a href={state.image || ''} download="lumina_enhanced.png" className="flex items-center justify-center gap-4 bg-primary text-white py-6 rounded-[2rem] font-bold shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
                           <Download className="w-6 h-6" /> تحميل النتيجة
                         </a>
-                        <button onClick={() => navigator.share && state.image && navigator.share({ title: 'Lumina AI', url: window.location.href })} className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 dark:border-gray-700">
+                        <button onClick={() => navigator.share && state.image && navigator.share({ title: 'Lumina AI', url: window.location.href })} className="flex items-center justify-center gap-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-6 rounded-[2rem] font-bold shadow-xl border border-gray-100 dark:border-gray-700 active:scale-95">
                           <Share2 className="w-6 h-6" /> مشاركة
                         </button>
                       </div>
@@ -223,7 +223,7 @@ const App: React.FC = () => {
                   <div className="space-y-8">
                     {state.currentStep === 'style-selection' && (
                       <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-700">
-                        <h3 className="text-lg font-bold mb-6 text-center">اختر نوع المعالجة</h3>
+                        <h3 className="text-lg font-bold mb-6 text-center">اختر نوع التحسين</h3>
                         <ArtisticGallery styles={ENHANCEMENT_TOOLS} onSelect={handleStyleSelect} />
                       </div>
                     )}
@@ -234,7 +234,8 @@ const App: React.FC = () => {
                           <div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/30 text-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                             <Wand2 className="w-8 h-8" />
                           </div>
-                          <h3 className="text-xl font-bold">تعديل ذكي</h3>
+                          <h3 className="text-xl font-bold">التعديل السحري</h3>
+                          <p className="text-gray-500 text-sm mt-2 font-medium">صف التعديلات المطلوبة بدقة</p>
                         </div>
 
                         <div className="space-y-4">
@@ -249,13 +250,13 @@ const App: React.FC = () => {
                           <textarea
                             value={customPrompt}
                             onChange={(e) => setCustomPrompt(e.target.value)}
-                            placeholder="صف التغيير المطلوب هنا..."
-                            className="w-full h-32 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-pink-500/50 outline-none transition-all resize-none text-dark dark:text-white"
+                            placeholder="مثال: اجعل الصورة بأسلوب فني، احذف الخلفية، أضف إضاءة نيون..."
+                            className="w-full h-32 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-pink-500/50 outline-none transition-all resize-none text-dark dark:text-white font-medium"
                           />
                           
                           <div className="flex gap-3">
                              <Button onClick={() => setState(prev => ({ ...prev, currentStep: 'style-selection' }))} variant="ghost" className="flex-1 py-4">إلغاء</Button>
-                             <Button onClick={handleCustomPromptSubmit} disabled={!customPrompt.trim()} className="flex-[2] py-4 bg-pink-500 hover:bg-pink-600 text-white">تطبيق</Button>
+                             <Button onClick={handleCustomPromptSubmit} disabled={!customPrompt.trim()} className="flex-[2] py-4 bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/20">تطبيق التعديل</Button>
                           </div>
                         </div>
                       </div>
