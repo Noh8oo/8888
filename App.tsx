@@ -8,51 +8,47 @@ import { ChatWidget } from './components/ChatWidget';
 import { ArtisticGallery } from './components/ArtisticGallery';
 import { AppState, ToolMode, RemixStyle } from './types';
 import { analyzeImageWithGemini, refineDescriptionWithGemini, remixImageWithGemini } from './services/geminiService';
-import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Zap, Move, Sun, ShieldCheck, Microscope, Monitor, Film, Palette, Maximize } from 'lucide-react';
+import { Share2, RefreshCw, Download, Sparkles, Check, AlertCircle, ArrowLeft, Microscope, Maximize, Zap, Film, Wand2, Send, Palette, Eraser, CloudRain, PenTool, Sun } from 'lucide-react';
+import { Button } from './components/Button';
 
+// Refactored: Simplified to 4 Core Tools to avoid user confusion
 const ENHANCEMENT_TOOLS: RemixStyle[] = [
   { 
-    id: 'upscale_auto', 
-    name: 'تحسين ذكي + رفع دقة', 
+    id: 'smart_enhance', 
+    name: 'تحسين شامل (Auto Enhance)', 
     icon: <Sparkles className="w-8 h-8" />, 
     color: 'bg-blue-500', 
-    prompt: 'Auto enhance: Upscale resolution, clean, balanced brightness, good contrast, natural saturation.' 
+    prompt: 'Professional image enhancement: Correct colors, balance lighting, remove noise, and apply subtle sharpening for a crystal clear look.' 
   },
   { 
     id: 'super_res', 
-    name: 'توضيح فائق (Super Res)', 
+    name: 'رفع الدقة (Super Res 4K)', 
     icon: <Maximize className="w-8 h-8" />, 
     color: 'bg-emerald-500', 
-    prompt: 'Super resolution: Upscale, high clarity, sharpen details, reduce noise, keep natural colors.' 
+    prompt: 'Upscale to 4K resolution: High fidelity restoration, remove pixelation, sharpen edges, and reconstruct missing high-frequency details.' 
   },
   { 
-    id: 'cinematic', 
-    name: 'سينمائي (Cinematic)', 
-    icon: <Film className="w-8 h-8" />, 
-    color: 'bg-teal-600', 
-    prompt: 'Cinematic look: Teal and Orange hints, high contrast, slightly moody lighting.' 
+    id: 'restoration', 
+    name: 'ترميم وتوضيح (Restoration)', 
+    icon: <Microscope className="w-8 h-8" />, 
+    color: 'bg-violet-500', 
+    prompt: 'Image restoration: Fix blur, denoise heavily, enhance facial details, improve clarity, and restore degraded quality.' 
   },
   { 
-    id: 'hdr', 
-    name: 'ألوان HDR', 
-    icon: <Zap className="w-8 h-8" />, 
-    color: 'bg-purple-500', 
-    prompt: 'HDR effect: High saturation, high contrast, vivid details, pop colors.' 
+    id: 'custom_edit', 
+    name: 'تعديل سحري (Magic Edit)', 
+    icon: <Wand2 className="w-8 h-8" />, 
+    color: 'bg-pink-500', 
+    prompt: 'CUSTOM' 
   },
-  { 
-    id: 'warm', 
-    name: 'دافئ (Warm)', 
-    icon: <Sun className="w-8 h-8" />, 
-    color: 'bg-orange-500', 
-    prompt: 'Warm lighting: Golden hour feel, orange tint, bright and sunny.' 
-  },
-  { 
-    id: 'bw', 
-    name: 'أبيض وأسود', 
-    icon: <Palette className="w-8 h-8" />, 
-    color: 'bg-gray-600', 
-    prompt: 'Black and White: Zero saturation, high contrast, dramatic shadows.' 
-  },
+];
+
+const SUGGESTIONS = [
+  { id: 'retro', text: 'Add a vintage retro filter', label: 'فلتر قديم (Retro)', icon: <Palette className="w-3 h-3" /> },
+  { id: 'remove_bg', text: 'Remove the person in the background', label: 'حذف أشخاص من الخلفية', icon: <Eraser className="w-3 h-3" /> },
+  { id: 'rain', text: 'Make it a rainy cyberpunk city', label: 'أجواء سايبر بانك ماطرة', icon: <CloudRain className="w-3 h-3" /> },
+  { id: 'sketch', text: 'Convert to a pencil sketch', label: 'رسم بقلم الرصاص', icon: <PenTool className="w-3 h-3" /> },
+  { id: 'sunset', text: 'Change lighting to golden hour sunset', label: 'إضاءة غروب الشمس', icon: <Sun className="w-3 h-3" /> },
 ];
 
 const App: React.FC = () => {
@@ -70,6 +66,7 @@ const App: React.FC = () => {
   const [isRefining, setIsRefining] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<RemixStyle | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
@@ -90,7 +87,6 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, currentStep: 'analyzing', toolMode: mode, image: displayBase64, error: null }));
       setLoading(true);
       try {
-        // Use the smaller API image for analysis
         const analysis = await analyzeImageWithGemini(apiBase64);
         setState(prev => ({ ...prev, currentStep: 'results', analysis: analysis }));
         setCurrentDescription(analysis.prompt);
@@ -103,8 +99,16 @@ const App: React.FC = () => {
   };
 
   const handleStyleSelect = async (style: RemixStyle) => {
+    // If Custom Edit is selected, switch to input mode
+    if (style.id === 'custom_edit') {
+      setSelectedStyle(style);
+      setCustomPrompt(''); // Reset prompt
+      setState(prev => ({ ...prev, currentStep: 'custom-prompt-input', error: null }));
+      return;
+    }
+
+    // Normal predefined style flow
     const sourceImage = originalImage;
-    const hintImage = apiImage;
     if (!sourceImage) return;
     
     setSelectedStyle(style);
@@ -112,11 +116,27 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
-      // Pass both: High res for editing, Low res for AI parameter extraction
-      const remixedImage = await remixImageWithGemini(sourceImage, style.prompt, hintImage || undefined);
+      const remixedImage = await remixImageWithGemini(sourceImage, style.prompt, 'restore');
       setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
     } catch (error: any) {
       console.error("Enhance Error:", error);
+      setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCustomPromptSubmit = async () => {
+    if (!customPrompt.trim() || !originalImage) return;
+
+    setState(prev => ({ ...prev, currentStep: 'processing', error: null }));
+    setLoading(true);
+
+    try {
+      const remixedImage = await remixImageWithGemini(originalImage, customPrompt, 'creative');
+      setState(prev => ({ ...prev, currentStep: 'results', image: remixedImage }));
+    } catch (error: any) {
+      console.error("Custom Edit Error:", error);
       setState(prev => ({ ...prev, currentStep: 'results', error: error.message }));
     } finally {
       setLoading(false);
@@ -142,6 +162,7 @@ const App: React.FC = () => {
     setCurrentDescription('');
     setSelectedStyle(null);
     setLoading(false);
+    setCustomPrompt('');
   };
 
   return (
@@ -172,7 +193,7 @@ const App: React.FC = () => {
                       {state.toolMode === 'remix' ? <Sparkles className="w-6 h-6" /> : <Microscope className="w-6 h-6" />}
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">{state.toolMode === 'remix' ? 'محسن الصور الذكي' : 'تحليل لومينا'}</h2>
+                      <h2 className="text-xl font-bold">{state.toolMode === 'remix' ? 'محسن البكسلات (Pixel Enhancer)' : 'تحليل لومينا'}</h2>
                       <div className="flex items-center gap-2 mt-1">
                         {['analyzing', 'processing'].includes(state.currentStep) ? (
                            <span className="flex items-center gap-2 text-xs text-gray-500 font-bold animate-pulse">
@@ -180,7 +201,11 @@ const App: React.FC = () => {
                            </span>
                         ) : state.currentStep === 'style-selection' ? (
                           <span className="flex items-center gap-2 text-xs text-blue-500 font-bold px-3 py-1 rounded-full">
-                            <Sparkles className="w-3 h-3" /> اختر نوع التحسين
+                            <Sparkles className="w-3 h-3" /> اختر وضع التحسين
+                          </span>
+                        ) : state.currentStep === 'custom-prompt-input' ? (
+                          <span className="flex items-center gap-2 text-xs text-pink-500 font-bold px-3 py-1 rounded-full">
+                            <Wand2 className="w-3 h-3" /> صف التعديل المطلوب
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-xs text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
@@ -218,7 +243,63 @@ const App: React.FC = () => {
                   <div className="space-y-8">
                     {state.currentStep === 'style-selection' && (
                       <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl">
+                        <h3 className="text-lg font-bold mb-6 text-center text-gray-700 dark:text-gray-200">اختر نوع المعالجة المطلوبة</h3>
                         <ArtisticGallery styles={ENHANCEMENT_TOOLS} onSelect={handleStyleSelect} />
+                      </div>
+                    )}
+
+                    {state.currentStep === 'custom-prompt-input' && (
+                      <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-8 shadow-2xl border border-pink-100 dark:border-pink-900/30 animate-slide-in">
+                        <div className="text-center mb-6">
+                          <div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/30 text-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 transform -rotate-6">
+                            <Wand2 className="w-8 h-8" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-800 dark:text-white">التعديل السحري</h3>
+                          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+                             اطلب أي تعديل تريده على الصورة باستخدام الذكاء الاصطناعي
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap gap-2 mb-2 justify-center">
+                             {SUGGESTIONS.map(s => (
+                               <button
+                                 key={s.id}
+                                 onClick={() => setCustomPrompt(s.text)}
+                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-300 text-xs font-bold border border-pink-100 dark:border-pink-800 hover:bg-pink-100 dark:hover:bg-pink-900/40 transition-colors"
+                               >
+                                 {s.icon}
+                                 {s.label}
+                               </button>
+                             ))}
+                          </div>
+
+                          <textarea
+                            value={customPrompt}
+                            onChange={(e) => setCustomPrompt(e.target.value)}
+                            placeholder="مثال: أضف فلتر قديم (Retro)، احذف الشخص الموجود في الخلفية، اجعل السماء تمطر..."
+                            className="w-full h-32 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-pink-500/50 outline-none transition-all resize-none text-dark dark:text-white placeholder-gray-400"
+                            autoFocus
+                          />
+                          
+                          <div className="flex gap-3">
+                             <Button 
+                               onClick={() => setState(prev => ({ ...prev, currentStep: 'style-selection' }))}
+                               variant="ghost"
+                               className="flex-1 py-4 rounded-xl"
+                             >
+                               إلغاء
+                             </Button>
+                             <Button 
+                               onClick={handleCustomPromptSubmit}
+                               disabled={!customPrompt.trim()}
+                               className="flex-[2] py-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white shadow-lg shadow-pink-500/30"
+                             >
+                               <Sparkles className="w-5 h-5 ml-2" />
+                               تنفيذ التعديل
+                             </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
 
