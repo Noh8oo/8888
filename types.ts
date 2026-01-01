@@ -23,8 +23,8 @@ export interface ChatMessage {
 export type ToolMode = 'analyze' | 'remix' | null;
 
 export interface AppState {
-  // إضافة خطوة اختيار النمط وخطوة الإدخال المخصص
-  currentStep: 'upload' | 'style-selection' | 'custom-prompt-input' | 'analyzing' | 'processing' | 'results';
+  // إضافة خطوة اختيار النمط
+  currentStep: 'upload' | 'style-selection' | 'analyzing' | 'processing' | 'results';
   toolMode: ToolMode;
   image: string | null; // Base64 string
   analysis: ImageAnalysis | null;

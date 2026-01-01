@@ -153,94 +153,42 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <p className="font-bold text-lg text-dark dark:text-white leading-tight">{analysis.style}</p>
         </div>
         
-        {/* Layout Card - REDESIGNED */}
+        {/* Layout Card - ENHANCED */}
         <div 
-          className={`relative p-5 rounded-2xl border transition-all duration-500 ease-in-out cursor-pointer group select-none overflow-hidden
+          className={`relative p-5 rounded-2xl border transition-all duration-500 ease-in-out cursor-pointer group select-none
             ${expandedSection === 'layout' 
-              ? 'col-span-full bg-slate-50 dark:bg-slate-900/40 border-primary/30 shadow-xl ring-1 ring-primary/10' 
+              ? 'col-span-full bg-blue-50/50 dark:bg-blue-900/10 border-primary/30 shadow-lg ring-1 ring-primary/20' 
               : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md hover:-translate-y-1'
             }`}
           onClick={() => toggleSection('layout')}
         >
-          {/* Subtle Grid Background for Expanded State */}
-          <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${expandedSection === 'layout' ? 'opacity-100' : 'opacity-0'}`}>
-             <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.05]" 
-                  style={{ backgroundImage: 'radial-gradient(#1E88E5 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}>
-             </div>
-             {/* Decorative Blobs */}
-             <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl"></div>
-             <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl"></div>
-          </div>
-
-          <div className="relative z-10 flex justify-between items-start">
-            <div className="flex items-center gap-4 mb-3 text-primary">
-              <div className={`relative p-3 rounded-xl transition-all duration-500 flex items-center justify-center ${expandedSection === 'layout' ? 'bg-primary text-white shadow-lg shadow-primary/30 rotate-3 scale-110' : 'bg-primary/5 group-hover:bg-primary/10'}`}>
-                <Layout className="w-6 h-6 relative z-10" />
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3 mb-3 text-primary">
+              <div className={`p-2 rounded-lg transition-colors duration-300 ${expandedSection === 'layout' ? 'bg-primary text-white' : 'bg-primary/5 group-hover:bg-primary/10'}`}>
+                <Layout className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold uppercase tracking-wider opacity-80">التكوين والتخطيط</span>
-                {expandedSection === 'layout' && (
-                  <span className="text-[10px] text-primary font-mono animate-fade-in opacity-80">
-                    Composition Analysis
-                  </span>
-                )}
-              </div>
+              <span className="text-xs font-bold uppercase tracking-wider">التكوين والتخطيط</span>
             </div>
             {analysis.layoutDetail && (
-              <div className={`p-2 rounded-full transition-all duration-300 ${expandedSection === 'layout' ? 'bg-white dark:bg-gray-800 text-primary rotate-180' : 'text-gray-300 group-hover:text-primary'}`}>
-                 <ChevronDown className="w-5 h-5" />
-              </div>
+              <button className="text-gray-400 hover:text-primary transition-colors">
+                 {expandedSection === 'layout' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
             )}
           </div>
 
-          <p className={`font-bold text-lg text-dark dark:text-white leading-tight transition-all duration-500 relative z-10 ${expandedSection === 'layout' ? 'text-2xl mb-6 text-primary dark:text-primary' : ''}`}>
+          <p className={`font-bold text-lg text-dark dark:text-white leading-tight transition-all ${expandedSection === 'layout' ? 'text-primary dark:text-primary mb-4' : ''}`}>
             {analysis.layout}
           </p>
           
           {/* Animated Detail Section */}
-          <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${expandedSection === 'layout' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+          <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${expandedSection === 'layout' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
             <div className="overflow-hidden">
               {analysis.layoutDetail && (
-                <div className="relative mt-2 pl-1">
-                  {/* Blueprint Card UI */}
-                  <div className="bg-white dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden allow-select group/card hover:shadow-md transition-shadow">
-                     
-                     {/* Window Header */}
-                     <div className="bg-gray-50 dark:bg-gray-900/80 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                        <div className="flex gap-1.5 opacity-60">
-                           <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
-                           <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
-                           <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] font-mono text-gray-400 uppercase tracking-widest">
-                           <Layers className="w-3 h-3" />
-                           Blueprint.json
-                        </div>
-                     </div>
-                     
-                     {/* Content Body */}
-                     <div className="p-6 relative">
-                        {/* Background Watermark */}
-                        <Quote className="absolute top-6 right-6 w-16 h-16 text-gray-50 dark:text-gray-900 transform -scale-x-100 z-0 opacity-50" />
-                        
-                        <div className="relative z-10 flex gap-4">
-                           {/* Decorative Sidebar Line */}
-                           <div className="w-1 rounded-full bg-gradient-to-b from-primary/50 to-transparent"></div>
-                           
-                           <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                              {analysis.layoutDetail}
-                           </p>
-                        </div>
-                     </div>
-                     
-                     {/* Footer Metadata */}
-                     <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[10px] text-gray-500 font-mono">
-                        <span className="flex items-center gap-1.5">
-                           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                           Active Analysis
-                        </span>
-                        <span className="opacity-70">Lumina Engine v3.0</span>
-                     </div>
+                <div className="relative mt-2 p-5 bg-white dark:bg-gray-900 rounded-xl border-l-4 border-primary text-sm text-gray-600 dark:text-gray-300 leading-relaxed shadow-sm allow-select">
+                  <Quote className="absolute top-4 right-4 w-8 h-8 text-gray-100 dark:text-gray-800 transform -scale-x-100" />
+                  <div className="relative z-10">
+                    <h5 className="font-bold text-dark dark:text-white mb-2 text-xs uppercase opacity-70">تفاصيل تقنية</h5>
+                    {analysis.layoutDetail}
                   </div>
                 </div>
               )}
