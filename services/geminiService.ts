@@ -2,9 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { ImageAnalysis } from "../types";
 
-// استخدام مفتاح API من البيئة أو المفتاح المباشر كاحتياطي
-const API_KEY = process.env.API_KEY || "AIzaSyD8tNXgDiYG9yDjNSVyC_dYIqzPe8lhuSs";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Function to get a fresh AI instance using the current environment key
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const ANALYSIS_MODEL = 'gemini-3-flash-preview';
 const EDITING_MODEL = 'gemini-2.5-flash-image';
@@ -14,19 +13,17 @@ const cleanBase64Data = (base64: string): string => {
   return base64;
 };
 
+// Optimal safety settings for free tier to minimize "Safety" rejections
 const SAFETY_SETTINGS = [
-  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
 ];
-
-// ---------------------------------------------------------
-// Services
-// ---------------------------------------------------------
 
 export const analyzeImageWithGemini = async (base64Image: string): Promise<ImageAnalysis> => {
   try {
+    const ai = getAI();
     const cleanImage = cleanBase64Data(base64Image);
     const response = await ai.models.generateContent({
       model: ANALYSIS_MODEL,
@@ -34,53 +31,41 @@ export const analyzeImageWithGemini = async (base64Image: string): Promise<Image
         role: "user",
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: cleanImage } },
-          { text: `Analyze this image precisely. Return valid JSON only: { "colors": [], "style": "Arabic", "layout": "Arabic", "layoutDetail": "Arabic", "view": "Arabic", "viewDetail": "Arabic", "objects": ["Arabic"], "prompt": "Arabic" }` }
+          { text: `Analyze this image. Output JSON: { "colors": ["#hex"], "style": "Arabic", "layout": "Arabic", "layoutDetail": "Arabic", "view": "Arabic", "viewDetail": "Arabic", "objects": ["Arabic"], "prompt": "Arabic description" }` }
         ]
       }],
-      config: { responseMimeType: "application/json", safetySettings: SAFETY_SETTINGS }
+      config: { 
+        responseMimeType: "application/json",
+        safetySettings: SAFETY_SETTINGS
+      }
     });
 
     const text = response.text || "{}";
     const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(jsonString) as ImageAnalysis;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Analysis Error:", error);
-    return { colors: ["#ccc"], style: "Error", layout: "N/A", view: "N/A", objects: [], prompt: "Error processing image." };
+    // Generic fallback for free tier errors
+    return { 
+      colors: ["#1E88E5"], 
+      style: "تحليل سريع", 
+      layout: "تخطيط تلقائي", 
+      view: "منظور قياسي", 
+      objects: ["صورة مرفعوعة"], 
+      prompt: "حدث ضغط على الخادم، يرجى المحاولة مرة أخرى لاحقاً." 
+    };
   }
 };
 
 export const remixImageWithGemini = async (base64Image: string, instruction: string, mode: 'restore' | 'creative' = 'restore'): Promise<string> => {
   try {
+    const ai = getAI();
     const cleanImage = cleanBase64Data(base64Image);
     
-    let finalPrompt = '';
-
-    if (mode === 'restore') {
-      // وضع الترميم والتحسين: يلتزم بخطوات تقنية صارمة
-      finalPrompt = `
-        Act as a professional Image Restoration AI (Super Resolution).
-        Goal: "${instruction}".
-        
-        Mandatory Processing Steps:
-        1. Super Resolution: Upscale image clarity to 4K quality.
-        2. Denoising: Remove grain and sensor noise (FastNLMeans equivalent).
-        3. Sharpening: Apply Unsharp Mask to define edges without halos.
-        4. Color Grading: Enhance vibrance and contrast (Histogram Equalization).
-        5. Output: Return the processed image ONLY. Maintain original composition perfectly.
-      `;
-    } else {
-      // وضع التعديل الإبداعي: يتبع تعليمات المستخدم بحرية أكبر
-      finalPrompt = `
-        Act as an expert AI Image Editor.
-        Instruction: "${instruction}".
-        
-        Task:
-        1. Analyze the user's request carefully.
-        2. Edit the image to fulfill the request (e.g., changing filters, removing objects, modifying elements).
-        3. Maintain high visual quality and realism.
-        4. Return the processed image ONLY.
-      `;
-    }
+    // Very simplified technical prompt to satisfy free tier safety/complexity limits
+    const finalPrompt = mode === 'restore' 
+      ? `Improve clarity, fix noise, sharpen edges. Goal: ${instruction}`
+      : `Apply artistic edit: ${instruction}. Keep realism.`;
 
     const response = await ai.models.generateContent({
       model: EDITING_MODEL,
@@ -90,33 +75,38 @@ export const remixImageWithGemini = async (base64Image: string, instruction: str
           { text: finalPrompt }
         ]
       },
-      // لا نستخدم responseMimeType مع موديلات الصور، الموديل سيرجع الصورة في inlineData
-      config: { safetySettings: SAFETY_SETTINGS }
+      config: { 
+        safetySettings: SAFETY_SETTINGS,
+        // Lower temperature for stability in free tier
+        temperature: 0.4
+      }
     });
 
-    // استخراج الصورة من الاستجابة
     if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData && part.inlineData.data) {
-          // الموديل يعيد PNG عادة
           return `data:image/png;base64,${part.inlineData.data}`;
         }
       }
     }
     
-    throw new Error("لم يتم توليد صورة، الرجاء المحاولة مرة أخرى.");
+    throw new Error("SERVER_BUSY");
 
-  } catch (error) {
-    console.error("Remix/Enhance Error:", error);
-    throw new Error("حدث خطأ أثناء معالجة الصورة بالذكاء الاصطناعي.");
+  } catch (error: any) {
+    console.error("Remix Error:", error);
+    if (error.message?.includes("Safety") || error.message?.includes("candidate")) {
+      throw new Error("الصورة تحتوي على عناصر تمنع معالجتها آلياً.");
+    }
+    throw new Error("الخادم مشغول حالياً بسبب كثرة الطلبات في النسخة المجانية. حاول مجدداً بعد ثوانٍ.");
   }
 };
 
 export const refineDescriptionWithGemini = async (originalDescription: string, userInstruction: string): Promise<string> => {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: ANALYSIS_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Original: "${originalDescription}". Instruction: "${userInstruction}". Rewrite in Arabic.` }] }],
+      contents: [{ role: "user", parts: [{ text: `Improve: "${originalDescription}" with "${userInstruction}". Arabic only.` }] }],
       config: { safetySettings: SAFETY_SETTINGS }
     });
     return response.text || originalDescription;
@@ -125,11 +115,12 @@ export const refineDescriptionWithGemini = async (originalDescription: string, u
 
 export const chatWithGemini = async (history: any[], message: string): Promise<string> => {
   try {
+    const ai = getAI();
     const chat = ai.chats.create({
       model: ANALYSIS_MODEL,
       history: history,
       config: { 
-        systemInstruction: "You are Lumina, a helpful Arabic design assistant.",
+        systemInstruction: "You are Lumina, a helpful assistant. Keep answers brief and in Arabic.",
         safetySettings: SAFETY_SETTINGS
       }
     });
